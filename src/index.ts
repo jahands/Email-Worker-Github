@@ -16,7 +16,7 @@ export default {
 		// Extract the body from each message.
 		// Metadata is also available, such as a message id and timestamp.
 		const messages: EmailMessage[] = batch.messages.map((msg) => msg.body)
-		const content = messages.map(msg => `**From:** ${msg.from} • <t:${msg.ts}:R>\n**Subject:** ${msg.subject}`)
+		const content = messages.map(msg => `**From:** ${msg.from} • <t:${Math.round(msg.ts/1000)}:f>\n**Subject:** ${msg.subject}`)
 		let next = ''
 		for (let i = 0; i < content.length; i++) {
 			if (next.length + content[i].length >= 1990) {
@@ -33,11 +33,12 @@ export default {
 }
 
 async function sendHook(content: string, env: Env): Promise<void> {
-	await fetch(env.DISCORDHOOK, {
-		body: content,
+	const res = await fetch(env.DISCORDHOOK, {
+		body: JSON.stringify({ content }),
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json'
 		}
 	})
+	console.log(res.status)
 }
