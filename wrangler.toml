@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2023-02-12"
 usage_model = "unbound"
 
+analytics_engine_datasets = [
+	{ binding = "STATS", dataset = "GITHUB_EMAIL_STATS" }
+]
+
+
 # Worker defines a binding, named "QUEUE", which gives it a capability
 # to send messages to a Queue, named "my-queue".
 [[queues.producers]]

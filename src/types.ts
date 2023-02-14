@@ -15,4 +15,5 @@ export interface Env {
 	// MY_BUCKET: R2Bucket;
 	DISCORDHOOK: string
 	QUEUE: Queue<EmailMessage>
+	STATS: AnalyticsEngineDataset
 }
