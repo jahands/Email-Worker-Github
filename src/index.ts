@@ -29,7 +29,7 @@ export default {
 		}
 		if (message.from.includes('@github.com') && message.headers.get('subject').includes('Please verify your email address.')) {
 			await message.forward('jacob@jacobhands.com')
-		} else if (Math.random() < 0.1) { // 10% chance
+		} else if (Math.random() < 0.5) { // 50% chance
 			await message.forward('github@eemailme.com')
 		}
 	},
