@@ -27,9 +27,14 @@ export default {
 				console.log(`Unable to find project info in: ${subject}\n${e}`)
 			}
 		}
-		if (message.from.includes('@github.com') && message.headers.get('subject').includes('Please verify your email address.')) {
+		const today = new Date();
+		let forwardChance = 0.5 // 50%
+		if (today.getDay() === 6 || today.getDay() === 0) {
+			forwardChance = 1 // 100% on weekends
+		}
+		if (message.from.includes('github.com') && message.headers.get('subject').includes('Please verify your email address.')) {
 			await message.forward('jacob@jacobhands.com')
-		} else if (Math.random() < 0.5) { // 50% chance
+		} else if (Math.random() < forwardChance) {
 			await message.forward('github@eemailme.com')
 		}
 	},
