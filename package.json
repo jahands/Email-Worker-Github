@@ -14,5 +14,9 @@
     "test": "vitest",
     "start-persist": "wrangler dev --local --persist-to ./data",
     "replit-run-command": "npm run deploy"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.17",
+    "sanitize-filename": "^1.6.3"
   }
 }
