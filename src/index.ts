@@ -131,6 +131,8 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	const dt = dateHeader ? new Date(dateHeader) : new Date()
 	const dtFormat = formatDate(dt, { hour: false })
 	let filename = fixFilename(subject).trim()
+	filename = trimChar(filename, '-').trim()
+	filename = trimChar(filename, '_').trim()
 	if (!filename || filename === '') {
 		filename = `NOSUBJECT_${crypto.randomUUID()}`
 	}
@@ -159,4 +161,14 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 		method: 'PUT',
 		body: emailContent
 	})
+}
+
+function trimChar(str: string, ch: string) {
+    var start = 0, 
+        end = str.length;
+    while(start < end && str[start] === ch)
+        ++start;
+    while(end > start && str[end - 1] === ch)
+        --end;
+    return (start > 0 || end < str.length) ? str.substring(start, end) : str;
 }
