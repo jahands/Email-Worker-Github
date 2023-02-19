@@ -1,3 +1,4 @@
+import { ThrottledQueue } from '@jahands/msc-utils'
 import { AwsClient } from 'aws4fetch'
 import sanitize from 'sanitize-filename';
 
@@ -6,8 +7,11 @@ import { QueueData, Env } from "./types";
 const AETYPES = {
 	Msc: 'msc',
 	Github: 'github',
-	Disqus: 'disqus'
+	Disqus: 'disqus',
+	Blogtrottr: 'blogtrottr'
 } as const
+
+const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 1200, limit: 1 });
 
 export default {
 	async email(message: EmailMessage, env: Env, ctx: ExecutionContext) {
@@ -39,12 +43,19 @@ export default {
 				console.log(`Unable to find project info in: ${subject}\n${e}`)
 			}
 		} else {
-			const folder = `to/${message.to}/from/${message.from}`
+			let from = message.from
+			// Some from's are super spammy, so we fix thejm up a bit
+			if(from.endsWith('@alerts.bounces.google.com')){
+				from = `REDACTED@alerts.bounces.google.com`
+			}
+			const folder = `to/${message.to}/from/${from}`
 			const res = await saveEmailToB2(env, message, folder, now)
 			console.log({ status: res.status })
 		}
 		if (message.from === 'notifications@disqus.net') {
 			allAEType = AETYPES.Disqus
+		} else if (message.to === 'blogtrottr-bulk@eemailme.com') {
+			allAEType = AETYPES.Blogtrottr
 		}
 		env.ALLSTATS.writeDataPoint({
 			blobs: [allAEType, message.to],
@@ -65,19 +76,23 @@ export default {
 		// Extract the body from each message.
 		// Metadata is also available, such as a message id and timestamp.
 		const messages: QueueData[] = batch.messages.map((msg) => msg.body)
-		const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
-		let next = ''
-		for (let i = 0; i < content.length; i++) {
-			if (next.length + content[i].length >= 1990) {
-				await sendHook(next, env)
-				next = ''
-			} else {
-				next += `\n${content[i]}`
-			}
+		for (const msg of messages) {
+			throttleQueue.add(() => sendHook(`**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`, env))
 		}
-		if (next.length > 0) {
-			await sendHook(next, env)
-		}
+		await throttleQueue.onIdle()
+		// const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
+		// let next = ''
+		// for (let i = 0; i < content.length; i++) {
+		// 	if (next.length + content[i].length >= 1990) {
+		// 		await sendHook(next, env)
+		// 		next = ''
+		// 	} else {
+		// 		next += `\n${content[i]}`
+		// 	}
+		// }
+		// if (next.length > 0) {
+		// 	await sendHook(next, env)
+		// }
 	},
 }
 
@@ -116,7 +131,10 @@ function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
 }
 
 function fixFilename(s: string): string {
-	return sanitize(s);
+	return sanitize(s).
+		replace("`", "''").
+		replace('/','_').
+		replace('\\','_')
 }
 
 async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, now: number): Promise<Response> {
@@ -164,11 +182,11 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 }
 
 function trimChar(str: string, ch: string) {
-    var start = 0, 
-        end = str.length;
-    while(start < end && str[start] === ch)
-        ++start;
-    while(end > start && str[end - 1] === ch)
-        --end;
-    return (start > 0 || end < str.length) ? str.substring(start, end) : str;
+	var start = 0,
+		end = str.length;
+	while (start < end && str[start] === ch)
+		++start;
+	while (end > start && str[end - 1] === ch)
+		--end;
+	return (start > 0 || end < str.length) ? str.substring(start, end) : str;
 }
