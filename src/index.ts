@@ -11,7 +11,7 @@ const AETYPES = {
 	Blogtrottr: 'blogtrottr'
 } as const
 
-const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 1200, limit: 1 });
+const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 5000, limit: 5 });
 
 export default {
 	async email(message: EmailMessage, env: Env, ctx: ExecutionContext) {
@@ -45,7 +45,7 @@ export default {
 		} else {
 			let from = message.from
 			// Some from's are super spammy, so we fix thejm up a bit
-			if(from.endsWith('@alerts.bounces.google.com')){
+			if (from.endsWith('@alerts.bounces.google.com')) {
 				from = `REDACTED@alerts.bounces.google.com`
 			}
 			const folder = `to/${message.to}/from/${from}`
@@ -76,23 +76,23 @@ export default {
 		// Extract the body from each message.
 		// Metadata is also available, such as a message id and timestamp.
 		const messages: QueueData[] = batch.messages.map((msg) => msg.body)
-		for (const msg of messages) {
-			throttleQueue.add(() => sendHook(`**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`, env))
+		// for (const msg of messages) {
+		// 	throttleQueue.add(() => sendHook(`**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`, env))
+		// }
+		const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
+		let next = ''
+		for (let i = 0; i < content.length; i++) {
+			if (next.length + content[i].length >= 1990) {
+				throttleQueue.add(() => sendHook(next, env))
+				next = ''
+			} else {
+				next += `\n${content[i]}`
+			}
+		}
+		if (next.length > 0) {
+			throttleQueue.add(() => sendHook(next, env))
 		}
 		await throttleQueue.onIdle()
-		// const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
-		// let next = ''
-		// for (let i = 0; i < content.length; i++) {
-		// 	if (next.length + content[i].length >= 1990) {
-		// 		await sendHook(next, env)
-		// 		next = ''
-		// 	} else {
-		// 		next += `\n${content[i]}`
-		// 	}
-		// }
-		// if (next.length > 0) {
-		// 	await sendHook(next, env)
-		// }
 	},
 }
 
@@ -133,8 +133,8 @@ function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
 function fixFilename(s: string): string {
 	return sanitize(s).
 		replace("`", "''").
-		replace('/','_').
-		replace('\\','_')
+		replace('/', '_').
+		replace('\\', '_')
 }
 
 async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, now: number): Promise<Response> {
@@ -154,8 +154,16 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	if (!filename || filename === '') {
 		filename = `NOSUBJECT_${crypto.randomUUID()}`
 	}
-	let b2Key = `${folder}/${dtFormat}/${filename}`
 	const suffix = `.${now}.eml`
+	// Max length of a file on linux is 255, so we want to limit the last
+	// segment length. Went with 254 because off-by-one is annoying
+	const filenameWithSuffixLength = `${filename}${suffix}`.length
+	if (filenameWithSuffixLength > 254) {
+		const amountToTrim = 254 - suffix.length
+		filename = filename.substr(0, filename.length - amountToTrim)
+	}
+
+	let b2Key = `${folder}/${dtFormat}/${filename}`
 	const maxLength = 1024 - suffix.length
 	// s3 paths are max 1024 characters
 	if (b2Key.length > maxLength) {
