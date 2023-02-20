@@ -24,6 +24,10 @@ bucket_name = "eemailme"
   queue = "email-worker-github"
   binding = "QUEUE"
 
+[[queues.producers]]
+  queue = "email-to-discord-embed-queue"
+  binding = "DISCORDEMBED"
+
 # Worker also receives messages from the Queue, named "my-queue".
 [[queues.consumers]]
   queue = "email-worker-github"

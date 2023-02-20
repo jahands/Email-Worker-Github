@@ -5,6 +5,18 @@ export type QueueData = {
 	subject: string
 }
 
+/** synced with https://replit.com/@jachands/Email-to-Discord-Embed-Queue#src/types.ts */
+export interface EmbedQueueData {
+  /** Envelope From attribute of the email message. */
+  from: string
+  /** Envelope To attribute of the email message. */
+  to: string
+  /** Subject of email */
+  subject: string
+	/** Path to raw email in R2 bucket */
+	r2path: string
+}
+
 export interface Env {
 	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
 	// MY_KV_NAMESPACE: KVNamespace;
@@ -16,6 +28,7 @@ export interface Env {
 	// MY_BUCKET: R2Bucket;
 	DISCORDHOOK: string
 	QUEUE: Queue<QueueData>
+	DISCORDEMBED: Queue<EmbedQueueData>
 	STATS: AnalyticsEngineDataset
 	ALLSTATS: AnalyticsEngineDataset
 	DISQUSSTATS: AnalyticsEngineDataset

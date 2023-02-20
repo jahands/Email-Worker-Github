@@ -25,7 +25,8 @@ export default {
 			subject: subject
 		})
 		if (['noreply@github.com',
-			'notifications@github.com'].includes(message.from)) {
+			'notifications@github.com'].includes(message.from)
+			|| message.from.endsWith('@sgmail.github.com')) {
 			allAEType = AETYPES.Github
 			// Write some stats to AE
 			try {
@@ -49,6 +50,8 @@ export default {
 				from = `REDACTED@alerts.bounces.google.com`
 			} else if (from.endsWith('@hamfrj.shared.klaviyomail.com')) {
 				from = `REDACTED@hamfrj.shared.klaviyomail.com`
+			} else if (from.endsWith('@a464845.bnc3.mailjet.com')) {
+				from = `REDACTED@a464845.bnc3.mailjet.com`
 			}
 
 			const folder = `to/${message.to}/from/${from}`
@@ -72,6 +75,9 @@ export default {
 		// }
 		if (message.from.includes('github.com') && subject.includes('Please verify your email address.')) {
 			await message.forward('jacob@jacobhands.com')
+		}
+		if (message.to.includes('producthunt.com@eemailme.com')) {
+			// await message.forward('jacob@jacobhands.com')
 		}
 	},
 
@@ -134,7 +140,7 @@ function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
 }
 
 function fixFilename(s: string): string {
-	return sanitize(s).
+	return sanitize(s, { replacement: '!' }).
 		replace("`", "''").
 		replace('/', '_').
 		replace('\\', '_').
@@ -184,13 +190,30 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 				subject: subject
 			}
 		})
+		// Some sources are really spammy so we need to reduce
+		// how much we send
+		let sendChance = 1
+		if (message.from === 'notifications@disqus.net') {
+			sendChance = 1
+		} else if (message.from === 'noreply@github.com') {
+			sendChance = 1
+		}
+		if (Math.random() < sendChance) {
+			await env.DISCORDEMBED.send({
+				from: message.from,
+				subject: subject,
+				to: message.to,
+				r2path: b2Key
+			})
+		}
 	} catch (e) {
 		console.log('failed to save to R2', e)
 	}
-	return await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
+	const res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
 		method: 'PUT',
 		body: emailContent
 	})
+	return res
 }
 
 function trimChar(str: string, ch: string) {
