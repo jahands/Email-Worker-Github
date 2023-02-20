@@ -47,7 +47,10 @@ export default {
 			// Some from's are super spammy, so we fix thejm up a bit
 			if (from.endsWith('@alerts.bounces.google.com')) {
 				from = `REDACTED@alerts.bounces.google.com`
+			} else if (from.endsWith('@hamfrj.shared.klaviyomail.com')) {
+				from = `REDACTED@hamfrj.shared.klaviyomail.com`
 			}
+
 			const folder = `to/${message.to}/from/${from}`
 			const res = await saveEmailToB2(env, message, folder, now)
 			console.log({ status: res.status })
@@ -134,7 +137,8 @@ function fixFilename(s: string): string {
 	return sanitize(s).
 		replace("`", "''").
 		replace('/', '_').
-		replace('\\', '_')
+		replace('\\', '_').
+		replace('’', '')
 }
 
 async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, now: number): Promise<Response> {
