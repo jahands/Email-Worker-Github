@@ -146,7 +146,9 @@ function fixFilename(s: string): string {
 		replace("`", "''").
 		replace('/', '_').
 		replace('\\', '_').
-		replace('’', '')
+		replace('’', '').
+		replace('{', '!').
+		replace('}', '!')
 }
 
 async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, now: number): Promise<Response> {
@@ -184,45 +186,82 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	b2Key += suffix
 
 	const emailContent = await new Response(message.raw).arrayBuffer();
-	try {
-		await env.R2.put(b2Key, emailContent, {
-			customMetadata: {
-				to: message.to,
-				from: message.from,
-				subject: subject
-			}
-		})
-		await env.DISCORDEMBED.send({
-			from: message.from,
-			subject: subject,
-			to: message.to,
-			r2path: b2Key,
-			ts: dt.getTime()
-		})
-	} catch (e) {
-		console.log('failed to save to R2', e)
-		if (e instanceof Error) {
-			await logtail({
-				env, msg: e.message,
-				level: LogLevel.Error,
-				data: {
-					b2Key,
-					subject,
+	let tries = 0
+	let success = false
+	while (!success && tries <= 3) {
+		tries++
+		try {
+			await env.R2.put(b2Key, emailContent, {
+				customMetadata: {
 					to: message.to,
 					from: message.from,
-					emailLength: emailContent.toString().length,
-					error: {
-						message: e.message,
-						stack: e.stack
-					},
+					subject: subject
 				}
 			})
+			success = true
+			await env.DISCORDEMBED.send({
+				from: message.from,
+				subject: subject,
+				to: message.to,
+				r2path: b2Key,
+				ts: dt.getTime()
+			})
+		} catch (e) {
+			console.log('failed to save to R2', e)
+			if (e instanceof Error) {
+				await logtail({
+					env, msg: e.message,
+					level: LogLevel.Error,
+					data: {
+						b2Key,
+						subject,
+						to: message.to,
+						from: message.from,
+						emailLength: emailContent.toString().length,
+						error: {
+							message: e.message,
+							stack: e.stack
+						},
+					}
+				})
+			}
 		}
+	}
+	if (!success) {
+		await logtail({
+			env, msg: `Failed to save to R2 after retries :(`,
+			level: LogLevel.Warn,
+			data: {
+				b2Key,
+				subject,
+				to: message.to,
+				from: message.from,
+				emailLength: emailContent.toString().length,
+			}
+		})
 	}
 	const res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
 		method: 'PUT',
 		body: emailContent
 	})
+	if (!res.ok) {
+		await logtail({
+			env, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
+			level: LogLevel.Warn,
+			data: {
+				b2Key,
+				subject,
+				to: message.to,
+				from: message.from,
+				emailLength: emailContent.toString().length,
+				res: {
+					status: res.status,
+					statusText: res.statusText,
+					body: await res.clone().text()
+				}
+			}
+		})
+	}
 	return res
 }
 
