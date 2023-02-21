@@ -191,23 +191,13 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 				subject: subject
 			}
 		})
-		// Some sources are really spammy so we need to reduce
-		// how much we send
-		let sendChance = 1
-		if (message.from === 'notifications@disqus.net') {
-			sendChance = 1
-		} else if (message.from === 'noreply@github.com') {
-			sendChance = 1
-		}
-		if (Math.random() < sendChance) {
-			await env.DISCORDEMBED.send({
-				from: message.from,
-				subject: subject,
-				to: message.to,
-				r2path: b2Key,
-				ts: dt.getTime()
-			})
-		}
+		await env.DISCORDEMBED.send({
+			from: message.from,
+			subject: subject,
+			to: message.to,
+			r2path: b2Key,
+			ts: dt.getTime()
+		})
 	} catch (e) {
 		console.log('failed to save to R2', e)
 	}
