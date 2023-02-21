@@ -91,7 +91,8 @@ export default {
 		const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
 		let next = ''
 		for (let i = 0; i < content.length; i++) {
-			if (next.length + content[i].length >= 1990) {
+			// +1 is for the \n we prepend in the else{}
+			if ((next.length + content[i].length) + 1 > 4096) {
 				throttleQueue.add(() => sendHook(next, env))
 				next = ''
 			} else {
