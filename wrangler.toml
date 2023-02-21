@@ -11,6 +11,7 @@ analytics_engine_datasets = [
 ]
 
 [vars]
+ENVIRONMENT = "production"
 B2_AWS_DEFAULT_REGION = "us-west-002"
 B2_ENDPOINT = "https://s3.us-west-002.backblazeb2.com/eemailme"
 
@@ -33,4 +34,4 @@ bucket_name = "eemailme"
   queue = "email-worker-github"
   max_batch_size = 100   # Max messages per batch
   max_batch_timeout = 30 # Max seconds to wait before batch is full
-  max_retries = 3       # Max retries per batch
+  max_retries = 0       # Max retries per batch

@@ -1,6 +1,7 @@
 import { ThrottledQueue } from '@jahands/msc-utils'
 import { AwsClient } from 'aws4fetch'
 import sanitize from 'sanitize-filename';
+import { LogLevel, logtail } from './logtail';
 
 import { QueueData, Env } from "./types";
 
@@ -200,6 +201,23 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 		})
 	} catch (e) {
 		console.log('failed to save to R2', e)
+		if (e instanceof Error) {
+			await logtail({
+				env, msg: e.message,
+				level: LogLevel.Error,
+				data: {
+					b2Key,
+					subject,
+					to: message.to,
+					from: message.from,
+					emailLength: emailContent.toString().length,
+					error: {
+						message: e.message,
+						stack: e.stack
+					},
+				}
+			})
+		}
 	}
 	const res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
 		method: 'PUT',

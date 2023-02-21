@@ -39,4 +39,6 @@ export interface Env {
 	B2_AWS_SECRET_ACCESS_KEY: string
 	B2_AWS_DEFAULT_REGION: string
 	B2_ENDPOINT: string
+	ENVIRONMENT: string
+	LOGTAIL_KEY: string
 }
