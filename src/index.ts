@@ -188,7 +188,7 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	const emailContent = await new Response(message.raw).arrayBuffer();
 	let tries = 0
 	let success = false
-	while (!success && tries <= 3) {
+	while (!success && tries < 3) {
 		tries++
 		try {
 			await env.R2.put(b2Key, emailContent, {
@@ -240,11 +240,36 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 			}
 		})
 	}
-	const res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
-		method: 'PUT',
-		body: emailContent
-	})
-	if (!res.ok) {
+	tries = 0
+	let res: Response | undefined
+	while (tries < 3) {
+		tries++
+		res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
+			method: 'PUT',
+			body: emailContent
+		})
+		if (res.ok) {
+			return res
+		} else {
+			await logtail({
+				env, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
+				level: LogLevel.Warn,
+				data: {
+					b2Key,
+					subject,
+					to: message.to,
+					from: message.from,
+					emailLength: emailContent.toString().length,
+					res: {
+						status: res.status,
+						statusText: res.statusText,
+						body: await res.clone().text()
+					}
+				}
+			})
+		}
+	}
+	if (res) {
 		await logtail({
 			env, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
 			level: LogLevel.Warn,
@@ -262,7 +287,7 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 			}
 		})
 	}
-	return res
+	throw new Error('Failed to save to B2')
 }
 
 function trimChar(str: string, ch: string) {
