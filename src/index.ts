@@ -203,7 +203,8 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 				from: message.from,
 				subject: subject,
 				to: message.to,
-				r2path: b2Key
+				r2path: b2Key,
+				ts: dt.getTime()
 			})
 		}
 	} catch (e) {

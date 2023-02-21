@@ -15,6 +15,8 @@ export interface EmbedQueueData {
   subject: string
 	/** Path to raw email in R2 bucket */
 	r2path: string
+	/** timestamp of the message */
+	ts: number
 }
 
 export interface Env {
