@@ -189,6 +189,9 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	let success = false
 	while (!success && tries < 3) {
 		tries++
+		if (tries > 1) {
+			await sleep(1000 * tries)
+		}
 		try {
 			await env.R2.put(b2Key, emailContent, {
 				customMetadata: {
@@ -297,4 +300,8 @@ function trimChar(str: string, ch: string) {
 	while (end > start && str[end - 1] === ch)
 		--end;
 	return (start > 0 || end < str.length) ? str.substring(start, end) : str;
+}
+
+export function sleep(ms: number) {
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
