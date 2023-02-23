@@ -38,8 +38,8 @@ export default {
 					indexes: [org]
 				})
 				try {
-					const res = await saveEmailToB2(env, message, `github/${message.from}/${org}/${project}`, now)
-					console.log({ status: res.status })
+					ctx.waitUntil(saveEmailToB2(env, message,
+						`github/${message.from}/${org}/${project}`, now))
 				} catch (e) { console.log(e) }
 			} catch (e) {
 				console.log(`Unable to find project info in: ${subject}\n${e}`)
@@ -56,8 +56,7 @@ export default {
 			}
 
 			const folder = `to/${message.to}/from/${from}`
-			const res = await saveEmailToB2(env, message, folder, now)
-			console.log({ status: res.status })
+			ctx.waitUntil(saveEmailToB2(env, message, folder, now))
 		}
 		if (message.from === 'notifications@disqus.net') {
 			allAEType = AETYPES.Disqus
