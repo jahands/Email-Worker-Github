@@ -146,9 +146,6 @@ function fixFilename(s: string): string {
 		filename = trimChar(filename, '-').trim()
 		filename = trimChar(filename, '_').trim()
 	}
-	console.log({
-		filename
-	})
 	return filename
 }
 
