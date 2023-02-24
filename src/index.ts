@@ -1,6 +1,5 @@
 import { ThrottledQueue } from '@jahands/msc-utils'
 import { AwsClient } from 'aws4fetch'
-import sanitize from 'sanitize-filename';
 import { LogLevel, logtail } from './logtail';
 
 import { QueueData, Env } from "./types";

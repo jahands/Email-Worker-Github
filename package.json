@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@jahands/msc-utils": "^0.0.69",
-    "aws4fetch": "^1.0.17",
-    "sanitize-filename": "^1.6.3"
+    "aws4fetch": "^1.0.17"
   }
 }
