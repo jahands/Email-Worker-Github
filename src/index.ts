@@ -141,13 +141,15 @@ function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
 }
 
 function fixFilename(s: string): string {
-	return sanitize(s, { replacement: '!' }).
-		replace("`", "''").
-		replace('/', '_').
-		replace('\\', '_').
-		replace('’', '').
-		replace('{', '!').
-		replace('}', '!')
+	let filename = s.replace(/[^a-zA-Z0-9-_\[\]]+/g, " ")
+	for (let i = 0; i < 10; i++) {
+		filename = trimChar(filename, '-').trim()
+		filename = trimChar(filename, '_').trim()
+	}
+	console.log({
+		filename
+	})
+	return filename
 }
 
 async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, now: number): Promise<Response> {
@@ -162,17 +164,15 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	const dt = dateHeader ? new Date(dateHeader) : new Date()
 	const dtFormat = formatDate(dt, { hour: false })
 	let filename = fixFilename(subject).trim()
-	filename = trimChar(filename, '-').trim()
-	filename = trimChar(filename, '_').trim()
 	if (!filename || filename === '') {
 		filename = `NOSUBJECT_${crypto.randomUUID()}`
 	}
 	const suffix = `.${now}.eml`
 	// Max length of a file on linux is 255, so we want to limit the last
-	// segment length. Went with 254 because off-by-one is annoying
+	// segment length.
 	const filenameWithSuffixLength = `${filename}${suffix}`.length
-	if (filenameWithSuffixLength > 254) {
-		const amountToTrim = 254 - suffix.length
+	if (filenameWithSuffixLength > 255) {
+		const amountToTrim = 255 - suffix.length
 		filename = filename.substr(0, filename.length - amountToTrim)
 	}
 
