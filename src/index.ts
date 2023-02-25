@@ -44,7 +44,7 @@ export default {
 		} catch (e) {
 			if (e instanceof Error) {
 				await logtail({
-					env, msg: 'Error handling email: ' + e.message,
+					env, msg: 'Error handling queue: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						batch,
