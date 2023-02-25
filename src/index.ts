@@ -15,96 +15,141 @@ const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 5000, limit
 
 export default {
 	async email(message: EmailMessage, env: Env, ctx: ExecutionContext) {
-		const now = Date.now()
-		let allAEType: string = AETYPES.Msc
-		const subject = message.headers.get('subject') || ''
-		await env.QUEUE.send({
-			ts: now,
-			from: message.from,
-			to: message.to,
-			subject: subject
-		})
-		if (['noreply@github.com',
-			'notifications@github.com'].includes(message.from)
-			|| message.from.endsWith('@sgmail.github.com')) {
-			allAEType = AETYPES.Github
-			// Write some stats to AE
-			try {
-				const { org, project } = getProjectInfo(subject)
-				env.STATS.writeDataPoint({
-					blobs: [org, project],
-					doubles: [1, message.rawSize],
-					indexes: [org]
+		try {
+			await handleEmail(message, env, ctx)
+		} catch (e) {
+			if (e instanceof Error) {
+				await logtail({
+					env, msg: 'Error handling email: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						email: {
+							to: message.to || '',
+							from: message.from || ''
+						},
+						error: {
+							message: e.message,
+							stack: e.stack
+						},
+					}
 				})
-				try {
-					ctx.waitUntil(saveEmailToB2(env, message,
-						`github/${message.from}/${org}/${project}`, now))
-				} catch (e) { console.log(e) }
-			} catch (e) {
-				console.log(`Unable to find project info in: ${subject}\n${e}`)
+				throw e
 			}
-		} else {
-			let from = message.from
-			// Some from's are super spammy, so we fix thejm up a bit
-			if (from.endsWith('@alerts.bounces.google.com')) {
-				from = `REDACTED@alerts.bounces.google.com`
-			} else if (from.endsWith('@hamfrj.shared.klaviyomail.com')) {
-				from = `REDACTED@hamfrj.shared.klaviyomail.com`
-			} else if (from.endsWith('@a464845.bnc3.mailjet.com')) {
-				from = `REDACTED@a464845.bnc3.mailjet.com`
-			} else if (from.endsWith('.discoursemail.com')) {
-				from = `REDACTED@${from.split('@')[1]}`
-			}
-
-			const folder = `to/${message.to}/from/${from}`
-			ctx.waitUntil(saveEmailToB2(env, message, folder, now))
-		}
-		if (message.from === 'notifications@disqus.net') {
-			allAEType = AETYPES.Disqus
-		} else if (message.to === 'blogtrottr-bulk@eemailme.com') {
-			allAEType = AETYPES.Blogtrottr
-		}
-		env.ALLSTATS.writeDataPoint({
-			blobs: [allAEType, message.to],
-			doubles: [1, message.rawSize],
-			indexes: [message.to]
-		})
-		// const today = new Date();
-		// let forwardChance = 0.1 // 10%
-		// if (today.getDay() === 6 || today.getDay() === 0) {
-		// 	forwardChance = 0.3 // 30% on weekends
-		// }
-		if (message.from.includes('github.com') && subject.includes('Please verify your email address.')) {
-			await message.forward('jacob@jacobhands.com')
-		}
-		if (message.to.includes('producthunt.com@eemailme.com')) {
-			// await message.forward('jacob@jacobhands.com')
 		}
 	},
 
 	async queue(batch: MessageBatch<QueueData>, env: Env) {
-		// Extract the body from each message.
-		// Metadata is also available, such as a message id and timestamp.
-		const messages: QueueData[] = batch.messages.map((msg) => msg.body)
-		// for (const msg of messages) {
-		// 	throttleQueue.add(() => sendHook(`**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`, env))
-		// }
-		const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
-		let next = ''
-		for (let i = 0; i < content.length; i++) {
-			// +1 is for the \n we prepend in the else{}
-			if ((next.length + content[i].length) + 1 > 4096) {
-				throttleQueue.add(() => sendHook(next, env))
-				next = ''
-			} else {
-				next += `\n${content[i]}`
+		try {
+			await handleQueue(batch, env)
+		} catch (e) {
+			if (e instanceof Error) {
+				await logtail({
+					env, msg: 'Error handling email: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						batch,
+						error: {
+							message: e.message,
+							stack: e.stack
+						},
+					}
+				})
+				throw e
 			}
 		}
-		if (next.length > 0) {
-			throttleQueue.add(() => sendHook(next, env))
-		}
-		await throttleQueue.onIdle()
 	},
+}
+
+async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
+	const now = Date.now()
+	let allAEType: string = AETYPES.Msc
+	const subject = message.headers.get('subject') || ''
+	await env.QUEUE.send({
+		ts: now,
+		from: message.from,
+		to: message.to,
+		subject: subject
+	})
+	if (['noreply@github.com',
+		'notifications@github.com'].includes(message.from)
+		|| message.from.endsWith('@sgmail.github.com')) {
+		allAEType = AETYPES.Github
+		// Write some stats to AE
+		try {
+			const { org, project } = getProjectInfo(subject)
+			env.STATS.writeDataPoint({
+				blobs: [org, project],
+				doubles: [1, message.rawSize],
+				indexes: [org]
+			})
+			try {
+				ctx.waitUntil(saveEmailToB2(env, message,
+					`github/${message.from}/${org}/${project}`, now))
+			} catch (e) { console.log(e) }
+		} catch (e) {
+			console.log(`Unable to find project info in: ${subject}\n${e}`)
+		}
+	} else {
+		let from = message.from
+		// Some from's are super spammy, so we fix thejm up a bit
+		if (from.endsWith('@alerts.bounces.google.com')) {
+			from = `REDACTED@alerts.bounces.google.com`
+		} else if (from.endsWith('@hamfrj.shared.klaviyomail.com')) {
+			from = `REDACTED@hamfrj.shared.klaviyomail.com`
+		} else if (from.endsWith('@a464845.bnc3.mailjet.com')) {
+			from = `REDACTED@a464845.bnc3.mailjet.com`
+		} else if (from.endsWith('.discoursemail.com')) {
+			from = `REDACTED@${from.split('@')[1]}`
+		}
+
+		const folder = `to/${message.to}/from/${from}`
+		ctx.waitUntil(saveEmailToB2(env, message, folder, now))
+	}
+	if (message.from === 'notifications@disqus.net') {
+		allAEType = AETYPES.Disqus
+	} else if (message.to === 'blogtrottr-bulk@eemailme.com') {
+		allAEType = AETYPES.Blogtrottr
+	}
+	env.ALLSTATS.writeDataPoint({
+		blobs: [allAEType, message.to],
+		doubles: [1, message.rawSize],
+		indexes: [message.to]
+	})
+	// const today = new Date();
+	// let forwardChance = 0.1 // 10%
+	// if (today.getDay() === 6 || today.getDay() === 0) {
+	// 	forwardChance = 0.3 // 30% on weekends
+	// }
+	if (message.from.includes('github.com') && subject.includes('Please verify your email address.')) {
+		await message.forward('jacob@jacobhands.com')
+	}
+	if (message.to.includes('producthunt.com@eemailme.com')) {
+		// await message.forward('jacob@jacobhands.com')
+	}
+}
+
+async function handleQueue(batch: MessageBatch<QueueData>, env: Env): Promise<void> {
+	// Extract the body from each message.
+	// Metadata is also available, such as a message id and timestamp.
+	const messages: QueueData[] = batch.messages.map((msg) => msg.body)
+	// for (const msg of messages) {
+	// 	throttleQueue.add(() => sendHook(`**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`, env))
+	// }
+	const content = messages.map(msg => `**To:** ${msg.to} • **From:** ${msg.from} • <t:${Math.round(msg.ts / 1000)}:f>\n**Subject:** ${msg.subject}`)
+	let next = ''
+	for (let i = 0; i < content.length; i++) {
+		// +1 is for the \n we prepend in the else{}
+		if ((next.length + content[i].length) + 1 > 4096) {
+			throttleQueue.add(() => sendHook(next, env))
+			next = ''
+		} else {
+			next += `\n${content[i]}`
+		}
+	}
+	if (next.length > 0) {
+		throttleQueue.add(() => sendHook(next, env))
+	}
+	await throttleQueue.onIdle()
 }
 
 async function sendHook(content: string, env: Env): Promise<void> {
