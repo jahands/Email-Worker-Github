@@ -52,6 +52,8 @@ export default {
 				from = `REDACTED@hamfrj.shared.klaviyomail.com`
 			} else if (from.endsWith('@a464845.bnc3.mailjet.com')) {
 				from = `REDACTED@a464845.bnc3.mailjet.com`
+			} else if (from.endsWith('.discoursemail.com')) {
+				from = `REDACTED@${from.split('@')[1]}`
 			}
 
 			const folder = `to/${message.to}/from/${from}`
