@@ -3,7 +3,7 @@ import { AwsClient } from 'aws4fetch'
 import { LogLevel, logtail } from './logtail';
 
 import { QueueData, Env } from "./types";
-import { fixFilename, formatDate } from './utils';
+import { fixFilename, formatDate, initSentry } from './utils';
 
 const AETYPES = {
 	Msc: 'msc',
@@ -16,6 +16,7 @@ const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 5000, limit
 
 export default {
 	async email(message: EmailMessage, env: Env, ctx: ExecutionContext) {
+		initSentry(env, ctx)
 		try {
 			await handleEmail(message, env, ctx)
 		} catch (e) {
@@ -36,6 +37,7 @@ export default {
 	},
 
 	async queue(batch: MessageBatch<QueueData>, env: Env, ctx: ExecutionContext) {
+		initSentry(env, ctx)
 		try {
 			await handleQueue(batch, env)
 		} catch (e) {
