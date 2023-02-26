@@ -20,7 +20,7 @@ export default {
 			await handleEmail(message, env, ctx)
 		} catch (e) {
 			if (e instanceof Error) {
-				await logtail({
+				logtail({
 					env, ctx, e, msg: 'Error handling email: ' + e.message,
 					level: LogLevel.Error,
 					data: {
@@ -40,7 +40,7 @@ export default {
 			await handleQueue(batch, env)
 		} catch (e) {
 			if (e instanceof Error) {
-				await logtail({
+				logtail({
 					env, ctx, e, msg: 'Error handling queue: ' + e.message,
 					level: LogLevel.Error,
 					data: {
@@ -226,7 +226,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		} catch (e) {
 			console.log('failed to save to R2', e)
 			if (e instanceof Error) {
-				await logtail({
+				logtail({
 					env, ctx, msg: e.message,
 					level: LogLevel.Error,
 					data: {
@@ -245,7 +245,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	}
 	if (!success) {
-		await logtail({
+		logtail({
 			env, ctx, msg: `Failed to save to R2 after retries :(`,
 			level: LogLevel.Warn,
 			data: {
@@ -268,7 +268,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		if (res.ok) {
 			return res
 		} else {
-			await logtail({
+			logtail({
 				env, ctx, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
 				level: LogLevel.Warn,
 				data: {
@@ -287,7 +287,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	}
 	if (res) {
-		await logtail({
+		logtail({
 			env, ctx, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
 			level: LogLevel.Warn,
 			data: {

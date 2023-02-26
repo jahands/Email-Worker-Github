@@ -2,7 +2,7 @@ import { Env } from "./types"
 import { getSentry } from "./utils"
 
 /** logtail sends logs to logtail.com */
-export async function logtail(args: {
+export function logtail(args: {
 	env: Env,
 	ctx: ExecutionContext,
 	msg: string,
@@ -25,7 +25,7 @@ export async function logtail(args: {
 	} else {
 		getSentry(env, ctx).captureMessage(msg, level || LogLevel.Info, { data })
 	}
-	await fetch("https://in.logtail.com",
+	ctx.waitUntil(fetch("https://in.logtail.com",
 		{
 			method: 'POST',
 			headers: {
@@ -39,7 +39,7 @@ export async function logtail(args: {
 				env: env.ENVIRONMENT,
 				...data
 			})
-		})
+		}))
 }
 
 export enum LogLevel {
