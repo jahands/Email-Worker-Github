@@ -205,7 +205,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	while (!success && tries < 3) {
 		tries++
 		if (tries > 1) {
-			await sleep(1000 * tries)
+			await scheduler.wait(1000 * tries)
 		}
 		try {
 			await env.R2.put(b2Key, emailContent, {

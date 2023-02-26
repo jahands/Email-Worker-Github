@@ -42,7 +42,3 @@ export function trimChar(str: string, ch: string) {
 		--end;
 	return (start > 0 || end < str.length) ? str.substring(start, end) : str;
 }
-
-export function sleep(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
