@@ -17,6 +17,8 @@ export async function logtail(args: {
 			stack: e.stack
 		}
 		getSentry(env, ctx).captureException(e)
+	} else {
+		getSentry(env, ctx).captureMessage(msg, level || LogLevel.Info, data)
 	}
 	await fetch("https://in.logtail.com",
 		{
@@ -38,6 +40,8 @@ export async function logtail(args: {
 export enum LogLevel {
 	Debug = "debug",
 	Info = "info",
-	Warn = "warn",
-	Error = "error"
+	Warn = "warning",
+	Error = "error",
+	Fatal = "fatal",
+	Log = "log"
 }
