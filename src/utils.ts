@@ -1,11 +1,15 @@
 import { Toucan } from 'toucan-js'
 import { Env } from './types'
 
+let sentry: Toucan | undefined
 export function getSentry(env: Env, ctx: ExecutionContext) {
-	return new Toucan({
-		dsn: env.SENTRY_DSN,
-		context: ctx,
-	});
+	if (!sentry) {
+		sentry = new Toucan({
+			dsn: env.SENTRY_DSN,
+			context: ctx,
+		});
+	}
+	return sentry
 }
 
 export function fixFilename(s: string): string {
