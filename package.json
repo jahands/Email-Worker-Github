@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@jahands/msc-utils": "^0.0.69",
-    "aws4fetch": "^1.0.17"
+    "aws4fetch": "^1.0.17",
+    "toucan-js": "^3.1.0"
   }
 }

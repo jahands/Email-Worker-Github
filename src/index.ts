@@ -3,6 +3,7 @@ import { AwsClient } from 'aws4fetch'
 import { LogLevel, logtail } from './logtail';
 
 import { QueueData, Env } from "./types";
+import { fixFilename, formatDate } from './utils';
 
 const AETYPES = {
 	Msc: 'msc',
@@ -20,7 +21,7 @@ export default {
 		} catch (e) {
 			if (e instanceof Error) {
 				await logtail({
-					env, e, msg: 'Error handling email: ' + e.message,
+					env, ctx, e, msg: 'Error handling email: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						email: {
@@ -34,13 +35,13 @@ export default {
 		}
 	},
 
-	async queue(batch: MessageBatch<QueueData>, env: Env) {
+	async queue(batch: MessageBatch<QueueData>, env: Env, ctx: ExecutionContext) {
 		try {
 			await handleQueue(batch, env)
 		} catch (e) {
 			if (e instanceof Error) {
 				await logtail({
-					env, e, msg: 'Error handling queue: ' + e.message,
+					env, ctx, e, msg: 'Error handling queue: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						batch,
@@ -75,7 +76,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 				indexes: [org]
 			})
 			try {
-				ctx.waitUntil(saveEmailToB2(env, message,
+				ctx.waitUntil(saveEmailToB2(env, ctx, message,
 					`github/${message.from}/${org}/${project}`, now))
 			} catch (e) { console.log(e) }
 		} catch (e) {
@@ -95,7 +96,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 		}
 
 		const folder = `to/${message.to}/from/${from}`
-		ctx.waitUntil(saveEmailToB2(env, message, folder, now))
+		ctx.waitUntil(saveEmailToB2(env, ctx, message, folder, now))
 	}
 	if (message.from === 'notifications@disqus.net') {
 		allAEType = AETYPES.Disqus
@@ -166,28 +167,7 @@ function getProjectInfo(s: string): { org: string, project: string } {
 	return { org, project }
 }
 
-function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
-	const year = dt.getUTCFullYear()
-	const month = dt.getUTCMonth()
-	const day = dt.getUTCDay()
-	const hour = dt.getUTCHours()
-	let fmt = `${year}/${month}/${day}`
-	if (ops.hour) {
-		fmt += `/${hour}`
-	}
-	return fmt
-}
-
-function fixFilename(s: string): string {
-	let filename = s.replace(/[^a-zA-Z0-9-_\[\]]+/g, " ")
-	for (let i = 0; i < 10; i++) {
-		filename = trimChar(filename, '-').trim()
-		filename = trimChar(filename, '_').trim()
-	}
-	return filename
-}
-
-async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, now: number): Promise<Response> {
+async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMessage, folder: string, now: number): Promise<Response> {
 	const aws = new AwsClient({
 		"accessKeyId": env.B2_AWS_ACCESS_KEY_ID,
 		"secretAccessKey": env.B2_AWS_SECRET_ACCESS_KEY,
@@ -247,7 +227,7 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 			console.log('failed to save to R2', e)
 			if (e instanceof Error) {
 				await logtail({
-					env, msg: e.message,
+					env, ctx, msg: e.message,
 					level: LogLevel.Error,
 					data: {
 						b2Key,
@@ -266,7 +246,7 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	}
 	if (!success) {
 		await logtail({
-			env, msg: `Failed to save to R2 after retries :(`,
+			env, ctx, msg: `Failed to save to R2 after retries :(`,
 			level: LogLevel.Warn,
 			data: {
 				b2Key,
@@ -289,7 +269,7 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 			return res
 		} else {
 			await logtail({
-				env, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
+				env, ctx, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
 				level: LogLevel.Warn,
 				data: {
 					b2Key,
@@ -308,7 +288,7 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 	}
 	if (res) {
 		await logtail({
-			env, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
+			env, ctx, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
 			level: LogLevel.Warn,
 			data: {
 				b2Key,
@@ -325,18 +305,4 @@ async function saveEmailToB2(env: Env, message: EmailMessage, folder: string, no
 		})
 	}
 	throw new Error('Failed to save to B2')
-}
-
-function trimChar(str: string, ch: string) {
-	var start = 0,
-		end = str.length;
-	while (start < end && str[start] === ch)
-		++start;
-	while (end > start && str[end - 1] === ch)
-		--end;
-	return (start > 0 || end < str.length) ? str.substring(start, end) : str;
-}
-
-export function sleep(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms));
 }

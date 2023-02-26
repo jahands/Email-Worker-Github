@@ -1,19 +1,22 @@
 import { Env } from "./types"
+import { getSentry } from "./utils"
 
 /** logtail sends logs to logtail.com */
 export async function logtail(args: {
 	env: Env,
+	ctx: ExecutionContext
 	msg: string,
 	level?: LogLevel,
 	data?: any,
 	e?: Error
 }) {
-	const { env, msg, level, data, e } = args
+	const { env, ctx, msg, level, data, e } = args
 	if (e) {
 		data.error = {
 			message: e.message,
 			stack: e.stack
 		}
+		getSentry(env, ctx).captureException(e)
 	}
 	await fetch("https://in.logtail.com",
 		{

@@ -41,4 +41,5 @@ export interface Env {
 	B2_ENDPOINT: string
 	ENVIRONMENT: string
 	LOGTAIL_KEY: string
+	SENTRY_DSN: string
 }
