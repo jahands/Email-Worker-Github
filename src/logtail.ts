@@ -18,7 +18,7 @@ export async function logtail(args: {
 		}
 		getSentry(env, ctx).captureException(e)
 	} else {
-		getSentry(env, ctx).captureMessage(msg, level || LogLevel.Info, data)
+		getSentry(env, ctx).captureMessage(msg, level || LogLevel.Info, { data })
 	}
 	await fetch("https://in.logtail.com",
 		{
