@@ -2,7 +2,7 @@ import { Toucan } from 'toucan-js'
 import { Env } from './types'
 
 let sentry: Toucan | undefined
-export function getSentry(env: Env, ctx: ExecutionContext) {
+export function getSentry(env: Env, ctx: ExecutionContext): Toucan {
 	if (!sentry) {
 		sentry = new Toucan({
 			dsn: env.SENTRY_DSN,
