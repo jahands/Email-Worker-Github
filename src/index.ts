@@ -20,16 +20,12 @@ export default {
 		} catch (e) {
 			if (e instanceof Error) {
 				await logtail({
-					env, msg: 'Error handling email: ' + e.message,
+					env, e, msg: 'Error handling email: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						email: {
 							to: message.to || '',
 							from: message.from || ''
-						},
-						error: {
-							message: e.message,
-							stack: e.stack
 						},
 					}
 				})
@@ -44,14 +40,10 @@ export default {
 		} catch (e) {
 			if (e instanceof Error) {
 				await logtail({
-					env, msg: 'Error handling queue: ' + e.message,
+					env, e, msg: 'Error handling queue: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						batch,
-						error: {
-							message: e.message,
-							stack: e.stack
-						},
 					}
 				})
 				throw e
