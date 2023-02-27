@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@jahands/msc-utils": "^0.0.69",
+    "@types/p-retry": "^3.0.1",
     "aws4fetch": "^1.0.17",
     "p-retry": "^5.1.2",
     "toucan-js": "^3.1.0"

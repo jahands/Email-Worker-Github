@@ -48,6 +48,7 @@ export default {
 					level: LogLevel.Error,
 					data: {
 						batch,
+						retriesLeft: e
 					}
 				})
 				throw e
@@ -67,17 +68,16 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 		subject: subject
 	}), {
 		retries: 3, minTimeout: 100, onFailedAttempt: async (e) => {
-			if (e instanceof Error) {
-				logtail({
-					env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
-					level: LogLevel.Error,
-					data: {
-						subject,
-						to: message.to,
-						from: message.from,
-					}
-				})
-			}
+			logtail({
+				env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+				level: LogLevel.Error,
+				data: {
+					retriesLeft: e.retriesLeft,
+					subject,
+					to: message.to,
+					from: message.from,
+				}
+			})
 		}
 	})
 
@@ -244,17 +244,17 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 				ts: dt.getTime()
 			}), {
 				retries: 3, minTimeout: 100, onFailedAttempt: async (e) => {
-					if (e instanceof Error) {
-						logtail({
-							env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
-							level: LogLevel.Error,
-							data: {
-								subject,
-								to: message.to,
-								from: message.from,
-							}
-						})
-					}
+					logtail({
+						env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+						level: LogLevel.Error,
+						data: {
+							retriesLeft: e.retriesLeft,
+							subject,
+							to: message.to,
+							from: message.from,
+						}
+					})
+
 				}
 			})
 		} catch (e) {
