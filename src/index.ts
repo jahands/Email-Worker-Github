@@ -202,6 +202,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	b2Key += suffix
 
 	const emailContent = await new Response(message.raw).arrayBuffer();
+	
 	let tries = 0
 	let success = false
 	while (!success && tries < 3) {

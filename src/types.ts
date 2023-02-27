@@ -7,12 +7,12 @@ export type QueueData = {
 
 /** synced with https://replit.com/@jachands/Email-to-Discord-Embed-Queue#src/types.ts */
 export interface EmbedQueueData {
-  /** Envelope From attribute of the email message. */
-  from: string
-  /** Envelope To attribute of the email message. */
-  to: string
-  /** Subject of email */
-  subject: string
+	/** Envelope From attribute of the email message. */
+	from: string
+	/** Envelope To attribute of the email message. */
+	to: string
+	/** Subject of email */
+	subject: string
 	/** Path to raw email in R2 bucket */
 	r2path: string
 	/** timestamp of the message */
