@@ -254,7 +254,6 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 							from: message.from,
 						}
 					})
-
 				}
 			})
 		} catch (e) {
