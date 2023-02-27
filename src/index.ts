@@ -1,3 +1,4 @@
+import pRetry, { AbortError } from 'p-retry';
 import { ThrottledQueue } from '@jahands/msc-utils'
 import { AwsClient } from 'aws4fetch'
 import { LogLevel, logtail } from './logtail';
@@ -59,12 +60,27 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	const now = Date.now()
 	let allAEType: string = AETYPES.Msc
 	const subject = message.headers.get('subject') || ''
-	await env.QUEUE.send({
+	await pRetry(async () => await env.QUEUE.send({
 		ts: now,
 		from: message.from,
 		to: message.to,
 		subject: subject
+	}), {
+		retries: 3, minTimeout: 100, onFailedAttempt: async (e) => {
+			if (e instanceof Error) {
+				logtail({
+					env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						subject,
+						to: message.to,
+						from: message.from,
+					}
+				})
+			}
+		}
 	})
+
 	if (['noreply@github.com',
 		'notifications@github.com'].includes(message.from)
 		|| message.from.endsWith('@sgmail.github.com')) {
@@ -202,7 +218,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	b2Key += suffix
 
 	const emailContent = await new Response(message.raw).arrayBuffer();
-	
+
 	let tries = 0
 	let success = false
 	while (!success && tries < 3) {
@@ -219,18 +235,33 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 				}
 			})
 			success = true
-			await env.DISCORDEMBED.send({
+
+			await pRetry(async () => await env.DISCORDEMBED.send({
 				from: message.from,
 				subject: subject,
 				to: message.to,
 				r2path: b2Key,
 				ts: dt.getTime()
+			}), {
+				retries: 3, minTimeout: 100, onFailedAttempt: async (e) => {
+					if (e instanceof Error) {
+						logtail({
+							env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+							level: LogLevel.Error,
+							data: {
+								subject,
+								to: message.to,
+								from: message.from,
+							}
+						})
+					}
+				}
 			})
 		} catch (e) {
 			console.log('failed to save to R2', e)
 			if (e instanceof Error) {
 				logtail({
-					env, ctx, msg: e.message,
+					env, ctx, e, msg: e.message,
 					level: LogLevel.Error,
 					data: {
 						b2Key,
@@ -238,10 +269,6 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						to: message.to,
 						from: message.from,
 						emailLength: emailContent.toString().length,
-						error: {
-							message: e.message,
-							stack: e.stack
-						},
 					}
 				})
 			}

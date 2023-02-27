@@ -24,10 +24,7 @@ export function logtail(args: {
 				...data
 			}
 		})
-		data.error = {
-			message: e.message,
-			stack: e.stack
-		}
+		data.error = e
 	} else {
 		getSentry(env, ctx).captureMessage(msg, level || LogLevel.Info, { data })
 	}
