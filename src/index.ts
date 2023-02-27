@@ -67,7 +67,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 		to: message.to,
 		subject: subject
 	}), {
-		retries: 3, minTimeout: 100, onFailedAttempt: async (e) => {
+		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
 			logtail({
 				env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
 				level: LogLevel.Error,
@@ -243,7 +243,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 				r2path: b2Key,
 				ts: dt.getTime()
 			}), {
-				retries: 3, minTimeout: 100, onFailedAttempt: async (e) => {
+				retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
 					logtail({
 						env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
 						level: LogLevel.Error,
