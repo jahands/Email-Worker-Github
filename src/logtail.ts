@@ -10,7 +10,8 @@ export function logtail(args: {
 	data?: any,
 	e?: Error
 }) {
-	const { env, ctx, msg, level, data, e } = args
+	let { env, ctx, msg, level, data, e } = args
+	if (!data) data = {}
 
 	const sentry = getSentry(env, ctx)
 	sentry.setExtra('data', data)
