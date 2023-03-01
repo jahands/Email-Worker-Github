@@ -165,6 +165,7 @@ async function handleQueue(batch: MessageBatch<QueueData>, env: Env, ctx: Execut
 }
 
 async function sendHook(content: string, env: Env, ctx: ExecutionContext): Promise<void> {
+	if (!content || content.length === 0 || content === '\n') return
 	const res = await fetch(env.DISCORDHOOK, {
 		body: JSON.stringify({ content }),
 		method: 'POST',
