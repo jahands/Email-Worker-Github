@@ -40,7 +40,7 @@ export default {
 	async queue(batch: MessageBatch<QueueData>, env: Env, ctx: ExecutionContext) {
 		initSentry(env, ctx)
 		try {
-			await handleQueue(batch, env)
+			await handleQueue(batch, env, ctx)
 		} catch (e) {
 			if (e instanceof Error) {
 				logtail({
@@ -139,7 +139,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	}
 }
 
-async function handleQueue(batch: MessageBatch<QueueData>, env: Env): Promise<void> {
+async function handleQueue(batch: MessageBatch<QueueData>, env: Env, ctx: ExecutionContext): Promise<void> {
 	// Extract the body from each message.
 	// Metadata is also available, such as a message id and timestamp.
 	const messages: QueueData[] = batch.messages.map((msg) => msg.body)
@@ -150,20 +150,20 @@ async function handleQueue(batch: MessageBatch<QueueData>, env: Env): Promise<vo
 	let next = ''
 	for (let i = 0; i < content.length; i++) {
 		// +1 is for the \n we prepend in the else{}
-		if ((next.length + content[i].length) + 1 > 4096) {
-			throttleQueue.add(() => sendHook(next, env))
+		if ((next.length + content[i].length + 1) > 2000) {
+			throttleQueue.add(() => sendHook(next, env, ctx))
 			next = ''
 		} else {
 			next += `\n${content[i]}`
 		}
 	}
 	if (next.length > 0) {
-		throttleQueue.add(() => sendHook(next, env))
+		throttleQueue.add(() => sendHook(next, env, ctx))
 	}
 	await throttleQueue.onIdle()
 }
 
-async function sendHook(content: string, env: Env): Promise<void> {
+async function sendHook(content: string, env: Env, ctx: ExecutionContext): Promise<void> {
 	const res = await fetch(env.DISCORDHOOK, {
 		body: JSON.stringify({ content }),
 		method: 'POST',
@@ -171,7 +171,17 @@ async function sendHook(content: string, env: Env): Promise<void> {
 			'content-type': 'application/json'
 		}
 	})
-	console.log(res.status)
+	if (!res.ok) {
+		logtail({
+			env, ctx, msg: 'Failed to send hook',
+			level: LogLevel.Error,
+			data: {
+				status: res.status,
+				statusText: res.statusText,
+				body: await res.text()
+			}
+		})
+	}
 }
 
 function getProjectInfo(s: string): { org: string, project: string } {
