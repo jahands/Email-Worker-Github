@@ -150,11 +150,12 @@ async function handleQueue(batch: MessageBatch<QueueData>, env: Env, ctx: Execut
 	let next = ''
 	for (let i = 0; i < content.length; i++) {
 		// +1 is for the \n we prepend in the else{}
-		if ((next.length + content[i].length + 1) > 2000) {
+		const email = content[i].substring(0, 1999) // Discord has a 2000 char limit
+		if ((next.length + email.length + 1) > 2000) {
 			throttleQueue.add(() => sendHook(next, env, ctx))
 			next = ''
 		} else {
-			next += `\n${content[i]}`
+			next += `\n${email}`
 		}
 	}
 	if (next.length > 0) {
