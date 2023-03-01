@@ -242,29 +242,6 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	})
 
-	const sendDiscordEmbed = async () => pRetry(async () => await env.DISCORDEMBED.send({
-		from: message.from,
-		subject: subject,
-		to: message.to,
-		r2path: b2Key,
-		ts: dt.getTime()
-	}), {
-		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
-			const msg = e.retriesLeft === 0 ? 'Failed to send to Queue, giving up: ' : 'Failed to send to Queue, retrying: '
-			logtail({
-				env, ctx, e, msg: msg + e.message,
-				level: LogLevel.Error,
-				data: {
-					b2Key,
-					subject,
-					to: message.to,
-					from: message.from,
-					emailLength: emailContent.toString().length,
-				}
-			})
-		}
-	})
-
 	const putB2 = async () => {
 		const res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
 			method: 'PUT',
@@ -291,6 +268,29 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 			})
 		}
 	}
+
+	const sendDiscordEmbed = async () => pRetry(async () => await env.DISCORDEMBED.send({
+		from: message.from,
+		subject: subject,
+		to: message.to,
+		r2path: b2Key,
+		ts: dt.getTime()
+	}), {
+		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
+			const msg = e.retriesLeft === 0 ? 'Failed to send to Queue, giving up: ' : 'Failed to send to Queue, retrying: '
+			logtail({
+				env, ctx, e, msg: msg + e.message,
+				level: LogLevel.Error,
+				data: {
+					b2Key,
+					subject,
+					to: message.to,
+					from: message.from,
+					emailLength: emailContent.toString().length,
+				}
+			})
+		}
+	})
 
 	await Promise.allSettled([putR2(), putB2(), sendDiscordEmbed()])
 }
