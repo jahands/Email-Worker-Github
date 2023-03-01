@@ -13,7 +13,7 @@ const AETYPES = {
 	Blogtrottr: 'blogtrottr'
 } as const
 
-const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 5000, limit: 5 });
+const throttleQueue = new ThrottledQueue({ concurrency: 1, interval: 1200, limit: 1 });
 
 export default {
 	async email(message: EmailMessage, env: Env, ctx: ExecutionContext) {
