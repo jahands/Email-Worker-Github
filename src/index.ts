@@ -237,9 +237,9 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	}), {
 		retries: 10, minTimeout: 250, onFailedAttempt: async (e) => {
-			const msg = e.retriesLeft === 0 ? 'Failed to save to R2, giving up: ' : 'Failed to save to R2, retrying: '
+			if (e.retriesLeft > 0) return
 			logtail({
-				env, ctx, e, msg: msg + e.message,
+				env, ctx, e, msg: 'Failed to save to R2, giving up: ' + e.message,
 				level: LogLevel.Error,
 				data: {
 					retriesLeft: e.retriesLeft,
@@ -287,9 +287,9 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		ts: dt.getTime()
 	}), {
 		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
-			const msg = e.retriesLeft === 0 ? 'Failed to send to Queue, giving up: ' : 'Failed to send to Queue, retrying: '
+			if (e.retriesLeft > 0) return
 			logtail({
-				env, ctx, e, msg: msg + e.message,
+				env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
 				level: LogLevel.Error,
 				data: {
 					b2Key,
