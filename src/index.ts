@@ -185,12 +185,12 @@ function getProjectInfo(s: string): { org: string, project: string } {
 	return { org, project }
 }
 
-async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMessage, folder: string, now: number): Promise<Response> {
+async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMessage, folder: string, now: number): Promise<void> {
 	const aws = new AwsClient({
-		"accessKeyId": env.B2_AWS_ACCESS_KEY_ID,
-		"secretAccessKey": env.B2_AWS_SECRET_ACCESS_KEY,
-		"region": env.B2_AWS_DEFAULT_REGION,
-		"service": "s3"
+		accessKeyId: env.B2_AWS_ACCESS_KEY_ID,
+		secretAccessKey: env.B2_AWS_SECRET_ACCESS_KEY,
+		region: env.B2_AWS_DEFAULT_REGION,
+		service: "s3"
 	});
 	const subject = message.headers.get('subject') || ''
 	const dateHeader = message.headers.get('Date')
@@ -219,78 +219,54 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 
 	const emailContent = await new Response(message.raw).arrayBuffer();
 
-	let tries = 0
-	let success = false
-	while (!success && tries < 3) {
-		tries++
-		if (tries > 1) {
-			await scheduler.wait(1000 * tries)
+	const putR2 = async () => pRetry(async () => await env.R2.put(b2Key, emailContent, {
+		customMetadata: {
+			to: message.to,
+			from: message.from,
+			subject: subject
 		}
-		try {
-			await env.R2.put(b2Key, emailContent, {
-				customMetadata: {
+	}), {
+		retries: 10, minTimeout: 250, onFailedAttempt: async (e) => {
+			const msg = e.retriesLeft === 0 ? 'Failed to save to R2, giving up: ' : 'Failed to save to R2, retrying: '
+			logtail({
+				env, ctx, e, msg: msg + e.message,
+				level: LogLevel.Error,
+				data: {
+					retriesLeft: e.retriesLeft,
+					attemptNumber: e.attemptNumber,
+					subject,
 					to: message.to,
 					from: message.from,
-					subject: subject
 				}
 			})
-			success = true
-
-			await pRetry(async () => await env.DISCORDEMBED.send({
-				from: message.from,
-				subject: subject,
-				to: message.to,
-				r2path: b2Key,
-				ts: dt.getTime()
-			}), {
-				retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
-					logtail({
-						env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
-						level: LogLevel.Error,
-						data: {
-							retriesLeft: e.retriesLeft,
-							subject,
-							to: message.to,
-							from: message.from,
-						}
-					})
-				}
-			})
-		} catch (e) {
-			console.log('failed to save to R2', e)
-			if (e instanceof Error) {
-				logtail({
-					env, ctx, e, msg: e.message,
-					level: LogLevel.Error,
-					data: {
-						b2Key,
-						subject,
-						to: message.to,
-						from: message.from,
-						emailLength: emailContent.toString().length,
-					}
-				})
-			}
 		}
-	}
-	if (!success) {
-		logtail({
-			env, ctx, msg: `Failed to save to R2 after retries :(`,
-			level: LogLevel.Warn,
-			data: {
-				b2Key,
-				subject,
-				to: message.to,
-				from: message.from,
-				emailLength: emailContent.toString().length,
-			}
-		})
-	}
-	tries = 0
-	let res: Response | undefined
-	while (tries < 3) {
-		tries++
-		res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
+	})
+
+	const sendDiscordEmbed = async () => pRetry(async () => await env.DISCORDEMBED.send({
+		from: message.from,
+		subject: subject,
+		to: message.to,
+		r2path: b2Key,
+		ts: dt.getTime()
+	}), {
+		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
+			const msg = e.retriesLeft === 0 ? 'Failed to send to Queue, giving up: ' : 'Failed to send to Queue, retrying: '
+			logtail({
+				env, ctx, e, msg: msg + e.message,
+				level: LogLevel.Error,
+				data: {
+					b2Key,
+					subject,
+					to: message.to,
+					from: message.from,
+					emailLength: emailContent.toString().length,
+				}
+			})
+		}
+	})
+
+	const putB2 = async () => {
+		const res = await aws.fetch(`${env.B2_ENDPOINT}/${encodeURIComponent(b2Key)}`, {
 			method: 'PUT',
 			body: emailContent
 		})
@@ -309,29 +285,12 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 					res: {
 						status: res.status,
 						statusText: res.statusText,
-						body: await res.clone().text()
+						body: await res.text()
 					}
 				}
 			})
 		}
 	}
-	if (res) {
-		logtail({
-			env, ctx, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
-			level: LogLevel.Warn,
-			data: {
-				b2Key,
-				subject,
-				to: message.to,
-				from: message.from,
-				emailLength: emailContent.toString().length,
-				res: {
-					status: res.status,
-					statusText: res.statusText,
-					body: await res.clone().text()
-				}
-			}
-		})
-	}
-	throw new Error('Failed to save to B2')
+
+	await Promise.allSettled([putR2(), putB2(), sendDiscordEmbed()])
 }
