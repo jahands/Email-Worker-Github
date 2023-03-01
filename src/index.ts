@@ -155,7 +155,7 @@ async function handleQueue(batch: MessageBatch<QueueData>, env: Env, ctx: Execut
 			throttleQueue.add(() => sendHook(next, env, ctx))
 			next = ''
 		} else {
-			next += `${email}\n`
+			next += `\n${email}`
 		}
 	}
 	if (next.length > 0) {
