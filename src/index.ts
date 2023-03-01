@@ -233,7 +233,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		customMetadata: {
 			to: message.to,
 			from: message.from,
-			subject: subject
+			subject: subject.substring(0, 255)
 		}
 	}), {
 		retries: 10, minTimeout: 250, onFailedAttempt: async (e) => {
