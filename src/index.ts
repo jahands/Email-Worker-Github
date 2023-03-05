@@ -61,6 +61,9 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	const now = Date.now()
 	let allAEType: string = AETYPES.Msc
 	const subject = message.headers.get('subject') || ''
+
+	
+
 	try {
 		await pRetry(async () => await env.QUEUE.send({
 			ts: now,
@@ -130,19 +133,6 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 		doubles: [1, message.rawSize],
 		indexes: [message.to]
 	})
-	const govIDBlocklist = ['fbi@subscriptions.fbi.gov']
-	if (message.to === 'usa-gov-lists@eemailme.com' && !govIDBlocklist.includes(message.from)) {
-		const govDeliveryId = message.headers.get('x-accountcode')
-		console.log({ govDeliveryId })
-		if (govDeliveryId) {
-			const id = govDeliveryId.trim().toUpperCase()
-			env.GOVDELIVERY.writeDataPoint({
-				blobs: [id],
-				doubles: [1],
-				indexes: [id]
-			})
-		}
-	}
 }
 
 async function handleQueue(batch: MessageBatch<QueueData>, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -235,6 +225,22 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	}
 	b2Key += suffix
 
+	const govIDBlocklist = ['fbi@subscriptions.fbi.gov']
+	let shouldCheckGovDelivery = true
+	if (message.to === 'usa-gov-lists@eemailme.com' && !govIDBlocklist.includes(message.from)) {
+		const govDeliveryId = message.headers.get('x-accountcode')
+		console.log({ govDeliveryId })
+		if (govDeliveryId) {
+			const id = govDeliveryId.trim().toUpperCase()
+			env.GOVDELIVERY.writeDataPoint({
+				blobs: [id],
+				doubles: [1],
+				indexes: [id]
+			})
+			shouldCheckGovDelivery = false
+		}
+	}
+
 	const emailContent = await new Response(message.raw).arrayBuffer();
 
 	const putR2 = async () => pRetry(async () => await env.R2.put(b2Key, emailContent, {
@@ -293,7 +299,8 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		subject: subject,
 		to: message.to,
 		r2path: b2Key,
-		ts: dt.getTime()
+		ts: dt.getTime(),
+		shouldCheckGovDelivery,
 	}), {
 		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
 			if (e.retriesLeft === 0) {

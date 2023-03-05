@@ -17,6 +17,8 @@ export interface EmbedQueueData {
 	r2path: string
 	/** timestamp of the message */
 	ts: number
+	/** Whether the embed worker should record govDelivery stats */
+	shouldCheckGovDelivery: boolean
 }
 
 export interface Env {
