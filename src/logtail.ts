@@ -1,33 +1,54 @@
 import { Env } from "./types"
 import { getSentry } from "./utils"
 
-/** logtail sends logs to logtail.com */
+/** logtail sends logs to logtail.com and Sentry (except for Debug logs) */
 export function logtail(args: {
 	env: Env,
 	ctx: ExecutionContext,
 	msg: string,
 	level?: LogLevel,
 	data?: any,
-	e?: Error
+	e?: Error,
+	useSentry?: boolean,
 }) {
-	let { env, ctx, msg, level, data, e } = args
+	let { env, ctx, msg, level, data, e, useSentry } = args
 	if (!data) data = {}
+	
+	if (useSentry === undefined) {
+		if (level === LogLevel.Debug) {
+			useSentry = false
+		} else {
+			useSentry = true
+		}
+	}
 
 	const sentry = getSentry(env, ctx)
-	sentry.setExtra('data', data)
-	if (level) sentry.setExtra('level', level)
-	sentry.setExtra('msg', msg)
+	if (useSentry) {
+		sentry.setExtra('msg', msg)
+		sentry.setExtra('data', data)
+		if (level) {
+			sentry.setExtra('level', level)
+		}
+	}
 
 	if (e) {
-		getSentry(env, ctx).captureException(e, {
-			data: {
-				msg,
-				...data
-			}
-		})
+		if (useSentry) {
+			sentry.captureException(e, {
+				data: {
+					msg,
+					...data
+				}
+			})
+		}
+		if (!level) {
+			level = LogLevel.Error
+		}
+
 		data.error = e
 	} else {
-		getSentry(env, ctx).captureMessage(msg, level || LogLevel.Info, { data })
+		if (useSentry) {
+			sentry.captureMessage(msg, level || LogLevel.Info, { data })
+		}
 	}
 	ctx.waitUntil(fetch("https://in.logtail.com",
 		{
@@ -49,7 +70,7 @@ export function logtail(args: {
 export enum LogLevel {
 	Debug = "debug",
 	Info = "info",
-	Warn = "warning",
+	Warning = "warning",
 	Error = "error",
 	Fatal = "fatal",
 	Log = "log"

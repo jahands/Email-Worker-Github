@@ -278,7 +278,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		} else {
 			logtail({
 				env, ctx, msg: `Failed to save to B2! ${res.status} - ${res.statusText}`,
-				level: LogLevel.Warn,
+				level: LogLevel.Warning,
 				data: {
 					b2Key,
 					subject,
