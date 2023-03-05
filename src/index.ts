@@ -61,25 +61,27 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	const now = Date.now()
 	let allAEType: string = AETYPES.Msc
 	const subject = message.headers.get('subject') || ''
-	await pRetry(async () => await env.QUEUE.send({
-		ts: now,
-		from: message.from,
-		to: message.to,
-		subject: subject
-	}), {
-		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
-			logtail({
-				env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
-				level: LogLevel.Error,
-				data: {
-					retriesLeft: e.retriesLeft,
-					subject,
-					to: message.to,
-					from: message.from,
-				}
-			})
-		}
-	})
+	try {
+		await pRetry(async () => await env.QUEUE.send({
+			ts: now,
+			from: message.from,
+			to: message.to,
+			subject: subject
+		}), {
+			retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
+				logtail({
+					env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						retriesLeft: e.retriesLeft,
+						subject,
+						to: message.to,
+						from: message.from,
+					}
+				})
+			}
+		})
+	} catch { } // Logged above, ignore
 
 	if (['noreply@github.com',
 		'notifications@github.com'].includes(message.from)
