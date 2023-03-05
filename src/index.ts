@@ -222,14 +222,14 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	const filenameWithSuffixLength = `${filename}${suffix}`.length
 	if (filenameWithSuffixLength > 255) {
 		const amountToTrim = 255 - suffix.length
-		filename = filename.substr(0, filename.length - amountToTrim)
+		filename = filename.substring(0, filename.length - amountToTrim)
 	}
 
 	let b2Key = `${folder}/${dtFormat}/${filename}`
 	const maxLength = 1024 - suffix.length
 	// s3 paths are max 1024 characters
 	if (b2Key.length > maxLength) {
-		b2Key = b2Key.substr(0, maxLength - 1) // -1 in case of off-by-one
+		b2Key = b2Key.substring(0, maxLength - 1) // -1 in case of off-by-one
 	}
 	b2Key += suffix
 
