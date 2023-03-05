@@ -29,8 +29,6 @@ export function logtail(args: {
 		if (level) {
 			sentry.setExtra('level', level)
 		}
-	} else {
-		data.useSentry = false // For easily finding non-sentry logs
 	}
 
 	if (e) {
@@ -64,7 +62,8 @@ export function logtail(args: {
 				level: level || LogLevel.Info,
 				message: msg,
 				env: env.ENVIRONMENT,
-				...data
+				...data,
+				useSentry,
 			})
 		}))
 }
