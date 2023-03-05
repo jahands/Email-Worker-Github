@@ -225,7 +225,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	}
 	b2Key += suffix
 
-	const govIDBlocklist = ['fbi@subscriptions.fbi.gov']
+	const govIDBlocklist = ['fbi@subscriptions.fbi.gov', 'no-reply@civicplus.com']
 	let shouldCheckGovDelivery = false
 	if (message.to === 'usa-gov-lists@eemailme.com' && !govIDBlocklist.includes(message.from)) {
 		shouldCheckGovDelivery = true
