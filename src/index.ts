@@ -130,16 +130,18 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 		doubles: [1, message.rawSize],
 		indexes: [message.to]
 	})
-	// const today = new Date();
-	// let forwardChance = 0.1 // 10%
-	// if (today.getDay() === 6 || today.getDay() === 0) {
-	// 	forwardChance = 0.3 // 30% on weekends
-	// }
-	if (message.from.includes('github.com') && subject.includes('Please verify your email address.')) {
-		await message.forward('jacob@jacobhands.com')
-	}
-	if (message.to.includes('producthunt.com@eemailme.com')) {
-		// await message.forward('jacob@jacobhands.com')
+	const govIDBlocklist = ['fbi@subscriptions.fbi.gov']
+	if (message.to === 'usa-gov-lists@eemailme.com' && !govIDBlocklist.includes(message.from)) {
+		const govDeliveryId = message.headers.get('x-accountcode')
+		console.log({ govDeliveryId })
+		if (govDeliveryId) {
+			const id = govDeliveryId.trim().toUpperCase()
+			env.GOVDELIVERY.writeDataPoint({
+				blobs: [id],
+				doubles: [1],
+				indexes: [id]
+			})
+		}
 	}
 }
 

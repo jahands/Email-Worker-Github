@@ -8,6 +8,7 @@ analytics_engine_datasets = [
 	{ binding = "STATS", dataset = "GITHUB_EMAIL_STATS" },
 	{ binding = "ALLSTATS", dataset = "ALL_EMAIL_STATS" },
 	{ binding = "DISQUSSTATS", dataset = "DISQUS_EMAIL_STATS" },
+	{ binding = "GOVDELIVERY", dataset = "GOVDELIVERY_EMAIL" },
 ]
 
 [vars]
