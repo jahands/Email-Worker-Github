@@ -62,7 +62,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	let allAEType: string = AETYPES.Msc
 	const subject = message.headers.get('subject') || ''
 
-	
+
 
 	try {
 		await pRetry(async () => await env.QUEUE.send({
@@ -226,8 +226,9 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	b2Key += suffix
 
 	const govIDBlocklist = ['fbi@subscriptions.fbi.gov']
-	let shouldCheckGovDelivery = true
+	let shouldCheckGovDelivery = false
 	if (message.to === 'usa-gov-lists@eemailme.com' && !govIDBlocklist.includes(message.from)) {
+		shouldCheckGovDelivery = true
 		const govDeliveryId = message.headers.get('x-accountcode')
 		console.log({ govDeliveryId })
 		if (govDeliveryId) {
