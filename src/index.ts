@@ -69,16 +69,18 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 			subject: subject
 		}), {
 			retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
-				logtail({
-					env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
-					level: LogLevel.Error,
-					data: {
-						retriesLeft: e.retriesLeft,
-						subject,
-						to: message.to,
-						from: message.from,
-					}
-				})
+				if (e.retriesLeft === 0) {
+					logtail({
+						env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+						level: LogLevel.Error,
+						data: {
+							retriesLeft: e.retriesLeft,
+							subject,
+							to: message.to,
+							from: message.from,
+						}
+					})
+				}
 			}
 		})
 	} catch { } // Logged above, ignore
@@ -241,18 +243,19 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	}), {
 		retries: 10, minTimeout: 250, onFailedAttempt: async (e) => {
-			if (e.retriesLeft > 0) return
-			logtail({
-				env, ctx, e, msg: 'Failed to save to R2, giving up: ' + e.message,
-				level: LogLevel.Error,
-				data: {
-					retriesLeft: e.retriesLeft,
-					attemptNumber: e.attemptNumber,
-					subject,
-					to: message.to,
-					from: message.from,
-				}
-			})
+			if (e.retriesLeft === 0) {
+				logtail({
+					env, ctx, e, msg: 'Failed to save to R2, giving up: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						retriesLeft: e.retriesLeft,
+						attemptNumber: e.attemptNumber,
+						subject,
+						to: message.to,
+						from: message.from,
+					}
+				})
+			}
 		}
 	})
 
@@ -291,18 +294,19 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		ts: dt.getTime()
 	}), {
 		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
-			if (e.retriesLeft > 0) return
-			logtail({
-				env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
-				level: LogLevel.Error,
-				data: {
-					b2Key,
-					subject,
-					to: message.to,
-					from: message.from,
-					emailLength: emailContent.toString().length,
-				}
-			})
+			if (e.retriesLeft === 0) {
+				logtail({
+					env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						b2Key,
+						subject,
+						to: message.to,
+						from: message.from,
+						emailLength: emailContent.toString().length,
+					}
+				})
+			}
 		}
 	})
 
