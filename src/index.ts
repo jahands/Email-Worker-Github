@@ -83,6 +83,8 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 							from: message.from,
 						}
 					})
+				} else if (e.message === 'Queue is overloaded. Please back off.') {
+					await scheduler.wait(1000 * e.attemptNumber)
 				}
 			}
 		})
@@ -316,6 +318,8 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						emailLength: emailContent.toString().length,
 					}
 				})
+			} else if (e.message === 'Queue is overloaded. Please back off.') {
+				await scheduler.wait(1000 * e.attemptNumber)
 			}
 		}
 	})
