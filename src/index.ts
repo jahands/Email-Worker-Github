@@ -74,17 +74,33 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 			retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
 				if (e.retriesLeft === 0) {
 					logtail({
-						env, ctx, e, msg: 'Failed to send to Queue: ' + e.message,
+						env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
 						level: LogLevel.Error,
 						data: {
+							queue: 'QUEUE',
+							attemptNumber: e.attemptNumber,
 							retriesLeft: e.retriesLeft,
 							subject,
 							to: message.to,
 							from: message.from,
 						}
 					})
-				} else if (e.message === 'Queue is overloaded. Please back off.') {
-					await scheduler.wait(1000 * e.attemptNumber)
+				} else {
+					logtail({
+						env, ctx, e, msg: 'Failed to send to Queue, retrying: ' + e.message,
+						level: LogLevel.Warning,
+						data: {
+							queue: 'QUEUE',
+							attemptNumber: e.attemptNumber,
+							retriesLeft: e.retriesLeft,
+							subject,
+							to: message.to,
+							from: message.from,
+						}
+					})
+					if (e.message.includes('Queue is overloaded. Please back off.')) {
+						await scheduler.wait(1000 * e.attemptNumber)
+					}
 				}
 			}
 		})
@@ -311,6 +327,9 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 					env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
 					level: LogLevel.Error,
 					data: {
+						queue: 'DISCORDEMBED',
+						attemptNumber: e.attemptNumber,
+						retriesLeft: e.retriesLeft,
 						b2Key,
 						subject,
 						to: message.to,
@@ -318,8 +337,24 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						emailLength: emailContent.toString().length,
 					}
 				})
-			} else if (e.message === 'Queue is overloaded. Please back off.') {
-				await scheduler.wait(1000 * e.attemptNumber)
+			} else {
+				logtail({
+					env, ctx, e, msg: 'Failed to send to Queue, retrying: ' + e.message,
+					level: LogLevel.Error,
+					data: {
+						queue: 'DISCORDEMBED',
+						attemptNumber: e.attemptNumber,
+						retriesLeft: e.retriesLeft,
+						b2Key,
+						subject,
+						to: message.to,
+						from: message.from,
+						emailLength: emailContent.toString().length,
+					}
+				})
+				if (e.message.includes('Queue is overloaded. Please back off.')) {
+					await scheduler.wait(1000 * e.attemptNumber)
+				}
 			}
 		}
 	})
