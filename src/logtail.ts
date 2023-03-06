@@ -27,7 +27,7 @@ export function logtail(args: {
 		sentry.setExtra('msg', msg)
 		sentry.setExtra('data', data)
 		if (level) {
-			sentry.setExtra('level', level)
+			sentry.setTag('level', level)
 		}
 	}
 
