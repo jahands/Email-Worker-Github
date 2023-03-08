@@ -273,9 +273,9 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 			// Record saved space
 			const savedSpace = originalLength - trimmedLength
 			env.DISQUS_SAVED_SPACE.writeDataPoint({
-				blobs: [],
+				blobs: [message.to],
 				doubles: [savedSpace],
-				indexes: []
+				indexes: [message.to]
 			})
 		} catch (e) {
 			if (e instanceof Error) {
