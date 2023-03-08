@@ -265,9 +265,13 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		// Disqus emails have a ton of css that we don't want to store, get rid of it!
 		try {
 			const trimmedEmail = getTrimmedDisqusEmail(emailContent)
+
+			const originalLength = emailContent.byteLength
+			const trimmedLength = trimmedEmail.byteLength
+
 			emailContent = trimmedEmail
 			// Record saved space
-			const savedSpace = emailContent.byteLength - trimmedEmail.byteLength
+			const savedSpace = originalLength - trimmedLength
 			env.DISQUS_SAVED_SPACE.writeDataPoint({
 				blobs: ['bytes'],
 				doubles: [savedSpace],
