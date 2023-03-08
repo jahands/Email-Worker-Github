@@ -359,5 +359,6 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	})
 
-	await Promise.allSettled([putR2(), putB2(), sendDiscordEmbed()])
+	await Promise.allSettled([putR2(), putB2()])
+	await sendDiscordEmbed()
 }
