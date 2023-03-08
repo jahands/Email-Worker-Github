@@ -9,6 +9,7 @@ analytics_engine_datasets = [
 	{ binding = "ALLSTATS", dataset = "ALL_EMAIL_STATS" },
 	{ binding = "DISQUSSTATS", dataset = "DISQUS_EMAIL_STATS" },
 	{ binding = "GOVDELIVERY", dataset = "GOVDELIVERY_EMAIL" },
+	{ binding = "DISQUS_SAVED_SPACE", dataset = "DISQUS_SAVED_SPACE" },
 ]
 
 [vars]

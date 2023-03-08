@@ -4,7 +4,7 @@ import { AwsClient } from 'aws4fetch'
 import { LogLevel, logtail } from './logtail';
 
 import { QueueData, Env } from "./types";
-import { fixFilename, formatDate, initSentry } from './utils';
+import { fixFilename, formatDate, getTrimmedDisqusEmail, initSentry } from './utils';
 
 const AETYPES = {
 	Msc: 'msc',
@@ -260,7 +260,34 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		}
 	}
 
-	const emailContent = await new Response(message.raw).arrayBuffer();
+	let emailContent = await new Response(message.raw).arrayBuffer();
+	if (message.from === 'notifications@disqus.net') {
+		// Disqus emails have a ton of css that we don't want to store, get rid of it!
+		try {
+			const trimmedEmail = getTrimmedDisqusEmail(emailContent)
+			emailContent = trimmedEmail
+			// Record saved space
+			const savedSpace = emailContent.byteLength - trimmedEmail.byteLength
+			env.DISQUS_SAVED_SPACE.writeDataPoint({
+				blobs: [],
+				doubles: [savedSpace],
+				indexes: []
+			})
+		} catch (e) {
+			if (e instanceof Error) {
+				logtail({
+					env, ctx, e, msg: 'Failed to trim disqus email',
+					level: LogLevel.Error,
+					data: {
+						subject,
+						to: message.to,
+						from: message.from,
+						emailContent
+					}
+				})
+			}
+		}
+	}
 
 	const putR2 = async () => pRetry(async () => await env.R2.put(b2Key, emailContent, {
 		customMetadata: {

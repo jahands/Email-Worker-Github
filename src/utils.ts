@@ -6,7 +6,7 @@ export function getSentry(env: Env, ctx: ExecutionContext): Toucan {
 	if (!sentry) {
 		initSentry(env, ctx)
 	}
-	if(!sentry) throw new Error('unable to initSentry')
+	if (!sentry) throw new Error('unable to initSentry')
 	return sentry
 }
 
@@ -29,9 +29,9 @@ export function fixFilename(s: string): string {
 
 export function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
 	const year = dt.getUTCFullYear()
-	const month = dt.getUTCMonth()
-	const day = dt.getUTCDay()
-	const hour = dt.getUTCHours()
+	const month = String(dt.getUTCMonth() + 1).padStart(2, '0')
+	const day = String(dt.getUTCDay() + 1).padStart(2, '0')
+	const hour = String(dt.getUTCHours() + 1).padStart(2, '0')
 	let fmt = `${year}/${month}/${day}`
 	if (ops.hour) {
 		fmt += `/${hour}`
@@ -47,4 +47,27 @@ export function trimChar(str: string, ch: string) {
 	while (end > start && str[end - 1] === ch)
 		--end;
 	return (start > 0 || end < str.length) ? str.substring(start, end) : str;
+}
+
+export function getTrimmedDisqusEmail(emailContent: ArrayBuffer): ArrayBuffer {
+	const lines = new TextDecoder().decode(emailContent).split('\n')
+	const startBoundaryIdx = lines.indexOf('Content-Type: text/html; charset="utf-8"\r')
+	if (startBoundaryIdx === -1) {
+		throw new Error('Could not find start boundary')
+	}
+	let endBoundary: string | undefined
+	for (let i = lines.length - 1; i > startBoundaryIdx; i--) {
+		const match = lines[i].match(/--=+([0-9])+=+--/)
+		if (match) {
+			endBoundary = match[0]
+			break
+		}
+	}
+	if (!endBoundary) {
+		throw new Error('Could not find end boundary')
+	}
+	lines.splice(startBoundaryIdx - 1) // Remove the boundary itself and everything following
+	lines.push(endBoundary) // Add the end boundary back in
+	lines.push('\n')
+	return new TextEncoder().encode(lines.join('\n'))
 }

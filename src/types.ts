@@ -37,6 +37,7 @@ export interface Env {
 	ALLSTATS: AnalyticsEngineDataset
 	DISQUSSTATS: AnalyticsEngineDataset
 	GOVDELIVERY: AnalyticsEngineDataset
+	DISQUS_SAVED_SPACE: AnalyticsEngineDataset
 	R2: R2Bucket
 	B2_AWS_ACCESS_KEY_ID: string
 	B2_AWS_SECRET_ACCESS_KEY: string
