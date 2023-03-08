@@ -30,8 +30,8 @@ export function fixFilename(s: string): string {
 export function formatDate(dt: Date, ops: { hour: boolean } = { hour: true }): string {
 	const year = dt.getUTCFullYear()
 	const month = String(dt.getUTCMonth() + 1).padStart(2, '0')
-	const day = String(dt.getUTCDay() + 1).padStart(2, '0')
-	const hour = String(dt.getUTCHours() + 1).padStart(2, '0')
+	const day = String(dt.getUTCDate()).padStart(2, '0')
+	const hour = String(dt.getUTCHours()).padStart(2, '0')
 	let fmt = `${year}/${month}/${day}`
 	if (ops.hour) {
 		fmt += `/${hour}`
