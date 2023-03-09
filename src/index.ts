@@ -74,7 +74,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 			retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
 				if (e.retriesLeft === 0) {
 					logtail({
-						env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
+						env, ctx, msg: 'Failed to send to Queue, giving up: ' + e.message,
 						level: LogLevel.Error,
 						data: {
 							queue: 'QUEUE',
@@ -83,11 +83,12 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 							subject,
 							to: message.to,
 							from: message.from,
+							error: e
 						}
 					})
 				} else {
 					logtail({
-						env, ctx, e, msg: 'Failed to send to Queue, retrying: ' + e.message,
+						env, ctx, msg: 'Failed to send to Queue, retrying: ' + e.message,
 						level: LogLevel.Warning,
 						data: {
 							queue: 'QUEUE',
@@ -96,6 +97,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 							subject,
 							to: message.to,
 							from: message.from,
+							error: e
 						}
 					})
 					if (e.message.includes('Queue is overloaded. Please back off.')) {
@@ -355,7 +357,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		retries: 5, minTimeout: 250, onFailedAttempt: async (e) => {
 			if (e.retriesLeft === 0) {
 				logtail({
-					env, ctx, e, msg: 'Failed to send to Queue, giving up: ' + e.message,
+					env, ctx, msg: 'Failed to send to EmbedQueue, giving up: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						queue: 'DISCORDEMBED',
@@ -366,11 +368,12 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						to: message.to,
 						from: message.from,
 						emailLength: emailContent.toString().length,
+						error: e
 					}
 				})
 			} else {
 				logtail({
-					env, ctx, e, msg: 'Failed to send to Queue, retrying: ' + e.message,
+					env, ctx, msg: 'Failed to send to EmbedQueue, retrying: ' + e.message,
 					level: LogLevel.Error,
 					data: {
 						queue: 'DISCORDEMBED',
@@ -381,6 +384,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						to: message.to,
 						from: message.from,
 						emailLength: emailContent.toString().length,
+						error: e
 					}
 				})
 				if (e.message.includes('Queue is overloaded. Please back off.')) {
