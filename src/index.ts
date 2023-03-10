@@ -145,7 +145,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	}
 	if (message.from === 'notifications@disqus.net') {
 		allAEType = AETYPES.Disqus
-	} else if (message.to === 'blogtrottr-bulk@eemailme.com') {
+	} else if (message.to.startsWith('blogtrottr-bulk@')) {
 		allAEType = AETYPES.Blogtrottr
 	}
 	env.ALLSTATS.writeDataPoint({
@@ -247,7 +247,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 
 	const govIDBlocklist = ['fbi@subscriptions.fbi.gov', 'no-reply@civicplus.com', 'listserv@civicplus.com']
 	let shouldCheckGovDelivery = false
-	if (message.to === 'usa-gov-lists@eemailme.com' && !govIDBlocklist.includes(message.from)) {
+	if (message.to.startsWith('usa-gov-lists@') && !govIDBlocklist.includes(message.from)) {
 		shouldCheckGovDelivery = true
 		const govDeliveryId = message.headers.get('x-accountcode')
 		console.log({ govDeliveryId })
