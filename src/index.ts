@@ -58,11 +58,14 @@ export default {
 }
 
 async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
+	if (!message.to.startsWith('usa-gov-lists@') && message.from.endsWith('.govdelivery.com')) {
+		// This is easier than unsubscribing to these lists tbh...
+		return
+	}
+
 	const now = Date.now()
 	let allAEType: string = AETYPES.Msc
 	const subject = message.headers.get('subject') || ''
-
-
 
 	try {
 		await pRetry(async () => await env.QUEUE.send({
