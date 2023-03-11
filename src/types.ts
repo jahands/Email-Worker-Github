@@ -9,6 +9,8 @@ export type QueueData = {
 export interface EmbedQueueData {
 	/** Envelope From attribute of the email message. */
 	from: string
+	/** From header */
+	rawFromHeader: string
 	/** Envelope To attribute of the email message. */
 	to: string
 	/** Subject of email */
@@ -46,4 +48,11 @@ export interface Env {
 	ENVIRONMENT: string
 	LOGTAIL_KEY: string
 	SENTRY_DSN: string
+}
+
+export interface EmailFromHeader {
+	raw: string,
+	address: string,
+	local: string,
+	name: string,
 }

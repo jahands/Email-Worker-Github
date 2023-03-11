@@ -3,8 +3,8 @@ import { ThrottledQueue } from '@jahands/msc-utils'
 import { AwsClient } from 'aws4fetch'
 import { LogLevel, logtail } from './logtail';
 
-import { QueueData, Env } from "./types";
-import { fixFilename, formatDate, getTrimmedDisqusEmail, initSentry } from './utils';
+import { QueueData, Env, EmailFromHeader } from "./types";
+import { fixFilename, formatDate, getTrimmedDisqusEmail, initSentry, parseFromEmailHeader } from './utils';
 
 const AETYPES = {
 	Msc: 'msc',
@@ -61,6 +61,23 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	if (!message.to.startsWith('usa-gov-lists@') && message.from.endsWith('.govdelivery.com')) {
 		// This is easier than unsubscribing to these lists tbh...
 		return
+	}
+
+	let fromHeader = parseFromEmailHeader(message.from)
+	// Header is preferred, but fall back on actual from address
+	const rawFromHeader = message.headers.get('from')
+	if (rawFromHeader) {
+		fromHeader = parseFromEmailHeader(rawFromHeader)
+	} else {
+		logtail({
+			env, ctx, msg: 'No from header',
+			level: LogLevel.Error,
+			data: {
+				to: message.to,
+				from: message.from,
+				rawFromHeader
+			}
+		})
 	}
 
 	const now = Date.now()
@@ -125,31 +142,19 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 			})
 			try {
 				ctx.waitUntil(saveEmailToB2(env, ctx, message,
-					`github/${message.from}/${org}/${project}`, now))
+					`github/${fromHeader.address}/${org}/${project}`, now, fromHeader))
 			} catch (e) { console.log(e) }
 		} catch (e) {
 			console.log(`Unable to find project info in: ${subject}\n${e}`)
 		}
 	} else {
-		let from = message.from
-		// Some from's are super spammy, so we fix thejm up a bit
-		if (from.endsWith('@alerts.bounces.google.com')) {
-			from = `REDACTED@alerts.bounces.google.com`
-		} else if (from.endsWith('@hamfrj.shared.klaviyomail.com')) {
-			from = `REDACTED@hamfrj.shared.klaviyomail.com`
-		} else if (from.endsWith('@a464845.bnc3.mailjet.com')) {
-			from = `REDACTED@a464845.bnc3.mailjet.com`
-		} else if (from.endsWith('.discoursemail.com')) {
-			from = `REDACTED@${from.split('@')[1]}`
-		}
-
-		const folder = `to/${message.to}/from/${from}`
-		ctx.waitUntil(saveEmailToB2(env, ctx, message, folder, now))
+		const folder = `to/${message.to}/from/${fromHeader.address}`
+		ctx.waitUntil(saveEmailToB2(env, ctx, message, folder, now, fromHeader))
 	}
-	if (message.from === 'notifications@disqus.net') {
+	if (fromHeader.address === 'notifications@disqus.net') {
 		allAEType = AETYPES.Disqus
 	} else if (message.to.startsWith('blogtrottr-bulk@')) {
-		allAEType = AETYPES.Blogtrottr
+		allAEType = AETYPES.Blogtrottr // Deprecated / removed
 	}
 	env.ALLSTATS.writeDataPoint({
 		blobs: [allAEType, message.to],
@@ -216,7 +221,13 @@ function getProjectInfo(s: string): { org: string, project: string } {
 	return { org, project }
 }
 
-async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMessage, folder: string, now: number): Promise<void> {
+async function saveEmailToB2(
+	env: Env, ctx: ExecutionContext,
+	message: EmailMessage,
+	folder: string,
+	now: number,
+	fromHeader: EmailFromHeader
+): Promise<void> {
 	const aws = new AwsClient({
 		accessKeyId: env.B2_AWS_ACCESS_KEY_ID,
 		secretAccessKey: env.B2_AWS_SECRET_ACCESS_KEY,
@@ -253,7 +264,6 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	if (message.to.startsWith('usa-gov-lists@') && !govIDBlocklist.includes(message.from)) {
 		shouldCheckGovDelivery = true
 		const govDeliveryId = message.headers.get('x-accountcode')
-		console.log({ govDeliveryId })
 		if (govDeliveryId) {
 			const id = govDeliveryId.trim().toUpperCase()
 			env.GOVDELIVERY.writeDataPoint({
@@ -266,7 +276,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 	}
 
 	let emailContent = await new Response(message.raw).arrayBuffer();
-	if (message.from === 'notifications@disqus.net') {
+	if (fromHeader.address === 'notifications@disqus.net') {
 		// Disqus emails have a ton of css that we don't want to store, get rid of it!
 		try {
 			const trimmedEmail = getTrimmedDisqusEmail(emailContent)
@@ -291,6 +301,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						subject,
 						to: message.to,
 						from: message.from,
+						fromHeader,
 						emailContent
 					}
 				})
@@ -302,7 +313,8 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 		customMetadata: {
 			to: message.to,
 			from: message.from,
-			subject: subject.substring(0, 255)
+			rawFromHeader: fromHeader.raw,
+			subject: subject.substring(0, 100)
 		}
 	}), {
 		retries: 10, minTimeout: 250, onFailedAttempt: async (e) => {
@@ -316,6 +328,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						subject,
 						to: message.to,
 						from: message.from,
+						fromHeader,
 					}
 				})
 			}
@@ -338,6 +351,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 					subject,
 					to: message.to,
 					from: message.from,
+					fromHeader,
 					emailLength: emailContent.toString().length,
 					res: {
 						status: res.status,
@@ -351,6 +365,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 
 	const sendDiscordEmbed = async () => pRetry(async () => await env.DISCORDEMBED.send({
 		from: message.from,
+		rawFromHeader: fromHeader.raw,
 		subject: subject,
 		to: message.to,
 		r2path: b2Key,
@@ -370,6 +385,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						subject,
 						to: message.to,
 						from: message.from,
+						fromHeader,
 						emailLength: emailContent.toString().length,
 						error: e
 					}
@@ -386,6 +402,7 @@ async function saveEmailToB2(env: Env, ctx: ExecutionContext, message: EmailMess
 						subject,
 						to: message.to,
 						from: message.from,
+						fromHeader,
 						emailLength: emailContent.toString().length,
 						error: e
 					}

@@ -1,5 +1,6 @@
 import { Toucan } from 'toucan-js'
-import { Env } from './types'
+import { EmailFromHeader, Env } from './types'
+import addrs from 'email-addresses'
 
 let sentry: Toucan | undefined
 export function getSentry(env: Env, ctx: ExecutionContext): Toucan {
@@ -70,4 +71,23 @@ export function getTrimmedDisqusEmail(emailContent: ArrayBuffer): ArrayBuffer {
 	lines.push(endBoundary) // Add the end boundary back in
 	lines.push('\n')
 	return new TextEncoder().encode(lines.join('\n'))
+}
+
+/** Parses out the email address from a From header */
+export function parseFromEmailHeader(from: string): EmailFromHeader {
+	const ad = addrs.parseOneAddress(
+		{
+			input: from,
+			oneResult: true,
+			rfc6532: true, // unicode
+		}
+	) as emailAddresses.ParsedMailbox | null
+	if (!ad) throw new Error(`unable to parse from: ${from}`)
+	// @ts-expect-error - comments is not in the type
+	const comments: string | undefined = ad.comments
+	let name = ad.name || ''
+	if (comments) {
+		name = `${name} ${comments}`
+	}
+	return { address: ad.address, name, raw: from, local: ad.local || '' }
 }
