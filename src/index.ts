@@ -284,7 +284,7 @@ async function saveEmailToB2(
 
 	const govIDBlocklist = ['fbi@subscriptions.fbi.gov', 'no-reply@civicplus.com', 'listserv@civicplus.com']
 	let shouldCheckGovDelivery = false
-	if (message.to.startsWith('usa-gov-lists@') && !govIDBlocklist.includes(message.from)) {
+	if (message.to.startsWith('usa-gov-lists@') && !govIDBlocklist.includes(fromHeader.address)) {
 		shouldCheckGovDelivery = true
 		const govDeliveryId = message.headers.get('x-accountcode')
 		if (govDeliveryId) {
