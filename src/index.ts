@@ -4,7 +4,7 @@ import { AwsClient } from 'aws4fetch'
 import { LogLevel, logtail } from './logtail';
 
 import { QueueData, Env, EmailFromHeader } from "./types";
-import { fixFilename, formatDate, getTrimmedDisqusEmail, initSentry, parseFromEmailHeader } from './utils';
+import { fixFilename, formatDate, getSentry, getTrimmedDisqusEmail, initSentry, parseFromEmailHeader } from './utils';
 
 const AETYPES = {
 	Msc: 'msc',
@@ -67,8 +67,24 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	// Header is preferred, but fall back on actual from address
 	const rawFromHeader = message.headers.get('from')
 	if (rawFromHeader) {
-		fromHeader = parseFromEmailHeader(rawFromHeader)
-	} else {
+		try {
+			fromHeader = parseFromEmailHeader(rawFromHeader)
+		} catch (e) {
+			if (e instanceof Error) {
+				logtail({
+					env, ctx, e, msg: 'Error parsing from header',
+					level: LogLevel.Error,
+					data: {
+						rawFromHeader,
+						to: message.to,
+						from: message.from,
+					}
+				})
+			}
+		}
+	}
+
+	if (!fromHeader || !fromHeader.address) {
 		logtail({
 			env, ctx, msg: 'No from header',
 			level: LogLevel.Error,
@@ -78,6 +94,13 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 				rawFromHeader
 			}
 		})
+		getSentry(env, ctx).setExtras({
+			to: message.to,
+			from: message.from,
+			rawFromHeader,
+			fromHeader
+		})
+		throw new Error('No from header')
 	}
 
 	const now = Date.now()
