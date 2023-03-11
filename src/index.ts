@@ -64,7 +64,7 @@ async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContex
 	}
 
 	let fromHeader = parseFromEmailHeader(message.from)
-	// Header is preferred, but fall back on actual from address
+	// Header is preferred, but fall back on envelope from address
 	const rawFromHeader = message.headers.get('from')
 	if (rawFromHeader) {
 		try {
