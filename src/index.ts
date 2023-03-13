@@ -59,6 +59,21 @@ export default {
 
 async function handleEmail(message: EmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
 	if (!message.to.startsWith('usa-gov-lists@') && message.from.endsWith('.govdelivery.com')) {
+		// Log to Sentry
+		const data = {
+			to: message.to,
+			from: message.from,
+			rawFromHeader: message.headers.get('from'),
+			subject: message.headers.get('subject')
+		}
+		getSentry(env, ctx).withScope(scope => {
+			scope.setExtras(data)
+			logtail({
+				env, ctx, msg: 'Dropping GovDelivery email',
+				level: LogLevel.Debug, data
+			})
+		})
+
 		// This is easier than unsubscribing to these lists tbh...
 		return
 	}
